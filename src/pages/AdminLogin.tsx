@@ -118,16 +118,6 @@ const AdminLogin = () => {
                 {isLoading ? "Entrando..." : "Entrar"}
               </Button>
             </form>
-            
-            <div className="mt-6 text-center p-4 bg-purple-50 rounded-xl">
-              <p className="text-sm text-purple-600 font-medium">
-                Para criar o usuário admin, acesse o painel do Supabase e crie um usuário com:
-              </p>
-              <p className="text-xs text-purple-500 mt-1">
-                Email: admin@cinebaby.online<br />
-                Após criar, ele será automaticamente configurado como admin.
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
