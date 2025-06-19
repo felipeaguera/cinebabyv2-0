@@ -21,6 +21,7 @@ interface Video {
   uploadDate: string;
   fileSize: string;
   qrCode: string;
+  fileUrl?: string;
 }
 
 interface Clinic {
