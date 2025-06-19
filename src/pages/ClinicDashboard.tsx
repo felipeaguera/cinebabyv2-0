@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +59,8 @@ const ClinicDashboard = () => {
     try {
       const parsedClinic = JSON.parse(clinicData);
       console.log('✅ Clínica carregada:', parsedClinic);
+      
+      // Agora a clínica deve ser salva diretamente, não dentro de um objeto
       setClinic(parsedClinic);
       
       if (parsedClinic.id) {
@@ -295,8 +296,8 @@ const ClinicDashboard = () => {
                 />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-white drop-shadow-lg">{clinic?.name || 'Carregando...'}</h1>
-                <p className="text-white/80 font-medium">{clinic?.city || ''}</p>
+                <h1 className="text-3xl font-bold text-white drop-shadow-lg">{clinic.name}</h1>
+                <p className="text-white/80 font-medium">{clinic.city}</p>
               </div>
             </div>
             <Button variant="outline" onClick={handleLogout} className="bg-white/20 border-white/30 text-white hover:bg-white/30 backdrop-blur-sm">

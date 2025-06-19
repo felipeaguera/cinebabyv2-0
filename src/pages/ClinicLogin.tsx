@@ -21,6 +21,8 @@ const ClinicLogin = () => {
     setIsLoading(true);
 
     try {
+      console.log('🔍 Tentando fazer login com:', email);
+
       // Buscar usuário e clínica associada
       const { data: user, error: userError } = await supabase
         .from('users')
@@ -34,6 +36,7 @@ const ClinicLogin = () => {
         .single();
 
       if (userError || !user) {
+        console.error('❌ Erro no login do usuário:', userError);
         toast({
           title: "Erro no login",
           description: "Email ou senha incorretos.",
@@ -43,20 +46,34 @@ const ClinicLogin = () => {
         return;
       }
 
-      // Salvar informações da clínica
-      localStorage.setItem("cinebaby_clinic", JSON.stringify({
-        user: user,
-        clinic: user.clinics?.[0] || null
-      }));
+      console.log('✅ Usuário encontrado:', user);
+      console.log('✅ Clínicas associadas:', user.clinics);
+
+      // Verificar se existe clínica associada
+      const clinic = user.clinics?.[0];
+      if (!clinic) {
+        console.error('❌ Nenhuma clínica encontrada para este usuário');
+        toast({
+          title: "Erro no login",
+          description: "Nenhuma clínica encontrada para este usuário. Entre em contato com o suporte.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Salvar informações da clínica corretamente
+      console.log('✅ Salvando dados da clínica:', clinic);
+      localStorage.setItem("cinebaby_clinic", JSON.stringify(clinic));
       
       toast({
         title: "Login realizado com sucesso!",
-        description: `Bem-vinda, ${user.clinics?.[0]?.name || user.email}!`,
+        description: `Bem-vinda, ${clinic.name}!`,
       });
       
       navigate("/clinic/dashboard");
     } catch (err) {
-      console.error('Erro no login:', err);
+      console.error('❌ Erro geral no login:', err);
       toast({
         title: "Erro no login",
         description: "Ocorreu um erro. Tente novamente.",
