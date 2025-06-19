@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,27 +15,16 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signIn, user, isAdmin, loading } = useAuth();
-
-  // Redirecionar se já estiver logado como admin
-  useEffect(() => {
-    if (!loading && user && isAdmin) {
-      console.log('Admin já logado, redirecionando...');
-      navigate("/admin/dashboard");
-    }
-  }, [user, isAdmin, loading, navigate]);
+  const { signIn } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      console.log('Tentando fazer login como admin:', email);
-
       const { error } = await signIn(email, password);
 
       if (error) {
-        console.error('Login error:', error);
         toast({
           title: "Erro no login",
           description: "Email ou senha incorretos.",
@@ -45,12 +34,12 @@ const AdminLogin = () => {
         return;
       }
 
-      // O redirecionamento será feito pelo useEffect quando o estado for atualizado
       toast({
         title: "Login realizado com sucesso!",
         description: "Bem-vindo ao painel administrativo.",
       });
       
+      navigate("/admin/dashboard");
     } catch (err) {
       console.error('Erro no login:', err);
       toast({
@@ -58,17 +47,10 @@ const AdminLogin = () => {
         description: "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
-      setIsLoading(false);
     }
-  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen cinebaby-gradient flex items-center justify-center">
-        <div className="text-white text-xl">Carregando...</div>
-      </div>
-    );
-  }
+    setIsLoading(false);
+  };
 
   return (
     <div className="min-h-screen cinebaby-gradient flex items-center justify-center p-4 relative overflow-hidden">
@@ -136,6 +118,16 @@ const AdminLogin = () => {
                 {isLoading ? "Entrando..." : "Entrar"}
               </Button>
             </form>
+            
+            <div className="mt-6 text-center p-4 bg-purple-50 rounded-xl">
+              <p className="text-sm text-purple-600 font-medium">
+                Para criar o usuário admin, acesse o painel do Supabase e crie um usuário com:
+              </p>
+              <p className="text-xs text-purple-500 mt-1">
+                Email: admin@cinebaby.online<br />
+                Após criar, ele será automaticamente configurado como admin.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

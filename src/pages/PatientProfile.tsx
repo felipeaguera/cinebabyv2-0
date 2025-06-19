@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -248,7 +247,6 @@ const PatientProfile = () => {
     
     console.log('🖨️ Imprimindo QR Code para paciente:', patient.id);
     console.log('🔗 URL do QR Code:', qrCodeData);
-    console.log('👤 Nome da paciente:', patient.name);
     
     let qrCodeDataURL = '';
     
@@ -267,17 +265,13 @@ const PatientProfile = () => {
       console.error('❌ Erro ao gerar QR Code:', error);
     }
 
-    // Escapar aspas simples no nome da paciente para evitar problemas no HTML
-    const patientNameEscaped = patient.name.replace(/'/g, "\\'");
-    const clinicNameEscaped = clinic.name.replace(/'/g, "\\'");
-
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Cartão QR Code - ${patientNameEscaped}</title>
+          <title>Cartão QR Code - ${patient.name}</title>
           <style>
             @media print {
               body { margin: 0; }
@@ -342,8 +336,6 @@ const PatientProfile = () => {
               -webkit-text-fill-color: transparent;
               background-clip: text;
               margin-bottom: 15px;
-              word-wrap: break-word;
-              overflow-wrap: break-word;
             }
             .patient-details {
               color: #6b7280;
@@ -436,10 +428,10 @@ const PatientProfile = () => {
             </div>
             
             <div class="patient-info">
-              <div class="patient-name">${patientNameEscaped}</div>
+              <div class="patient-name">${patient.name}</div>
               <div class="patient-details">
                 <strong>Data de Cadastro:</strong> ${new Date(patient.created_at).toLocaleDateString('pt-BR')}<br/>
-                <strong>Clínica:</strong> ${clinicNameEscaped}
+                <strong>Clínica:</strong> ${clinic.name}
               </div>
             </div>
             
@@ -465,7 +457,7 @@ const PatientProfile = () => {
             
             <div class="clinic-info">
               <strong>CineBaby</strong> - Momentos que emocionam para sempre<br/>
-              Em parceria com ${clinicNameEscaped}<br/>
+              Em parceria com ${clinic.name}<br/>
               <small style="font-size: 12px; color: #9ca3af;">ID: ${patient.id}</small>
             </div>
             

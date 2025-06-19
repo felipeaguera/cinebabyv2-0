@@ -27,27 +27,21 @@ const AdminDashboard = () => {
   const [allClinics, setAllClinics] = useState<Clinic[]>([]);
   const [filteredClinics, setFilteredClinics] = useState<Clinic[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { user, loading, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
-    console.log('AdminDashboard - Auth state:', { user, loading, isAdmin });
-    
     if (!loading && !user) {
-      console.log('No user, redirecting to login');
       navigate("/admin/login");
       return;
     }
 
     if (!loading && user && !isAdmin) {
-      console.log('User is not admin, redirecting to home');
       navigate("/");
       return;
     }
 
     if (user && isAdmin) {
-      console.log('User is admin, loading clinics');
       loadClinics();
     }
   }, [user, loading, isAdmin, navigate]);
@@ -68,25 +62,18 @@ const AdminDashboard = () => {
 
   const loadClinics = async () => {
     try {
-      setIsLoading(true);
-      console.log('Carregando clínicas...');
-      
       const { data, error } = await supabase
         .from('clinics')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
 
       if (error) {
         console.error('Erro ao carregar clínicas:', error);
         return;
       }
 
-      console.log('Clínicas carregadas:', data?.length || 0, data);
       setAllClinics(data || []);
     } catch (err) {
       console.error('Erro ao carregar clínicas:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -95,17 +82,7 @@ const AdminDashboard = () => {
     navigate("/");
   };
 
-  const handleClinicAdded = () => {
-    console.log('Clínica adicionada, recarregando lista...');
-    loadClinics();
-  };
-
-  const handleClinicDeleted = () => {
-    console.log('Clínica deletada, recarregando lista...');
-    loadClinics();
-  };
-
-  if (loading || isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen cinebaby-gradient flex items-center justify-center">
         <div className="text-white text-xl">Carregando...</div>
@@ -141,7 +118,7 @@ const AdminDashboard = () => {
                   <h2 className="text-3xl font-bold text-white mb-2 drop-shadow-lg">Clínicas Cadastradas</h2>
                   <p className="text-white/80 text-lg">Gerencie as clínicas da plataforma</p>
                 </div>
-                <AddClinicDialog onClinicAdded={handleClinicAdded} />
+                <AddClinicDialog onClinicAdded={loadClinics} />
               </div>
             </div>
 
@@ -163,7 +140,7 @@ const AdminDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ClinicTable clinics={filteredClinics} onClinicDeleted={handleClinicDeleted} />
+                <ClinicTable clinics={filteredClinics} onClinicDeleted={loadClinics} />
               </CardContent>
             </Card>
           </TabsContent>

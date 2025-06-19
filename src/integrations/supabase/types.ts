@@ -18,7 +18,7 @@ export type Database = {
           id: string
           name: string
           phone: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           address: string
@@ -28,7 +28,7 @@ export type Database = {
           id?: string
           name: string
           phone?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           address?: string
@@ -38,9 +38,17 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
-          user_id?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "clinics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       patients: {
         Row: {
@@ -85,6 +93,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          password: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          password: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          password?: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
       }
       videos: {
         Row: {

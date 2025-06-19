@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const ClinicLogin = () => {
   const [email, setEmail] = useState("");
@@ -15,70 +15,76 @@ const ClinicLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signIn, user, isAdmin, clinicData, loading } = useAuth();
-
-  // Redirecionar se já estiver logado como clínica
-  useEffect(() => {
-    if (!loading && user && !isAdmin && clinicData) {
-      console.log('Clínica já logada, redirecionando...');
-      navigate("/clinic/dashboard");
-    }
-  }, [user, isAdmin, clinicData, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      console.log('🔍 Tentando fazer login da clínica com:', email);
+      console.log('🔍 Tentando fazer login com:', email);
 
-      const { error } = await signIn(email, password);
+      // Buscar usuário primeiro
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password', password)
+        .eq('role', 'clinic')
+        .single();
 
-      if (error) {
-        console.error('❌ Erro no login:', error);
-        
-        // Tratar diferentes tipos de erro
-        if (error.message?.includes('Invalid login credentials')) {
-          toast({
-            title: "Credenciais inválidas",
-            description: "Email ou senha incorretos. Verifique seus dados e tente novamente.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Erro no login",
-            description: error.message || "Erro desconhecido. Tente novamente.",
-            variant: "destructive",
-          });
-        }
+      if (userError || !user) {
+        console.error('❌ Erro no login do usuário:', userError);
+        toast({
+          title: "Erro no login",
+          description: "Email ou senha incorretos.",
+          variant: "destructive",
+        });
         setIsLoading(false);
         return;
       }
 
-      // Se chegou até aqui, o login foi bem-sucedido
+      console.log('✅ Usuário encontrado:', user);
+
+      // Buscar clínica associada ao usuário
+      const { data: clinic, error: clinicError } = await supabase
+        .from('clinics')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (clinicError || !clinic) {
+        console.error('❌ Nenhuma clínica encontrada para este usuário:', clinicError);
+        toast({
+          title: "Erro no login",
+          description: "Nenhuma clínica encontrada para este usuário. Entre em contato com o suporte.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('✅ Clínica encontrada:', clinic);
+
+      // Salvar informações da clínica
+      localStorage.setItem("cinebaby_clinic", JSON.stringify(clinic));
+      
       toast({
         title: "Login realizado com sucesso!",
-        description: "Bem-vinda ao painel da clínica!",
+        description: `Bem-vinda, ${clinic.name}!`,
       });
       
+      navigate("/clinic/dashboard");
     } catch (err) {
       console.error('❌ Erro geral no login:', err);
       toast({
         title: "Erro no login",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
+        description: "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
-      setIsLoading(false);
     }
-  };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen cinebaby-gradient flex items-center justify-center">
-        <div className="text-white text-xl">Carregando...</div>
-      </div>
-    );
-  }
+    setIsLoading(false);
+  };
 
   return (
     <div className="min-h-screen cinebaby-gradient flex items-center justify-center p-4 relative overflow-hidden">
@@ -146,10 +152,6 @@ const ClinicLogin = () => {
                 {isLoading ? "Entrando..." : "Entrar"}
               </Button>
             </form>
-            
-            <div className="text-center text-sm text-gray-500 mt-4">
-              <p>Problemas para acessar? Entre em contato com o administrador.</p>
-            </div>
           </CardContent>
         </Card>
       </div>
