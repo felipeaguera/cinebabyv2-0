@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -144,29 +143,64 @@ const PatientProfile = () => {
     setIsUploading(true);
 
     try {
-      // Upload do vídeo para o Supabase Storage (se configurado) ou usar localStorage temporariamente
-      const videoData = {
-        patient_id: patient.id,
-        file_name: uploadFile.name,
-        file_size: uploadFile.size,
-        file_url: URL.createObjectURL(uploadFile) // Temporário até configurar storage
-      };
+      // Gerar nome único para o arquivo
+      const fileExt = uploadFile.name.split('.').pop();
+      const fileName = `${patient.id}/${Date.now()}.${fileExt}`;
 
+      console.log('📤 Fazendo upload do vídeo:', fileName);
+
+      // Upload do vídeo para o Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('videos')
+        .upload(fileName, uploadFile, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('❌ Erro no upload:', uploadError);
+        toast({
+          title: "Erro",
+          description: "Erro ao fazer upload do vídeo: " + uploadError.message,
+          variant: "destructive",
+        });
+        setIsUploading(false);
+        return;
+      }
+
+      console.log('✅ Upload realizado com sucesso');
+
+      // Obter URL pública do vídeo
+      const { data: { publicUrl } } = supabase.storage
+        .from('videos')
+        .getPublicUrl(fileName);
+
+      console.log('🔗 URL pública gerada:', publicUrl);
+
+      // Salvar informações do vídeo no banco
       const { data, error } = await supabase
         .from('videos')
-        .insert([videoData])
+        .insert([{
+          patient_id: patient.id,
+          file_name: uploadFile.name,
+          file_size: uploadFile.size,
+          file_url: publicUrl
+        }])
         .select()
         .single();
 
       if (error) {
-        console.error('Erro ao salvar vídeo:', error);
+        console.error('❌ Erro ao salvar vídeo no banco:', error);
         toast({
           title: "Erro",
-          description: "Erro ao salvar o vídeo. Tente novamente.",
+          description: "Erro ao salvar informações do vídeo: " + error.message,
           variant: "destructive",
         });
+        setIsUploading(false);
         return;
       }
+
+      console.log('✅ Vídeo salvo no banco:', data);
 
       // Recarregar a lista de vídeos
       await loadPatientData();
@@ -181,7 +215,7 @@ const PatientProfile = () => {
       });
 
     } catch (error) {
-      console.error('Erro no upload:', error);
+      console.error('❌ Erro no upload:', error);
       toast({
         title: "Erro",
         description: "Erro ao fazer upload do vídeo.",
@@ -419,6 +453,31 @@ const PatientProfile = () => {
   const handleDeleteVideo = async (videoId: string) => {
     if (window.confirm("Tem certeza que deseja excluir este vídeo?")) {
       try {
+        // Buscar o vídeo primeiro para obter o caminho do arquivo
+        const { data: videoData, error: fetchError } = await supabase
+          .from('videos')
+          .select('file_url')
+          .eq('id', videoId)
+          .single();
+
+        if (fetchError) {
+          console.error('Erro ao buscar vídeo:', fetchError);
+        } else if (videoData?.file_url) {
+          // Extrair o caminho do arquivo da URL
+          const fileName = videoData.file_url.split('/').pop();
+          if (fileName) {
+            // Remover o arquivo do storage
+            const { error: storageError } = await supabase.storage
+              .from('videos')
+              .remove([`${patient?.id}/${fileName}`]);
+
+            if (storageError) {
+              console.error('Erro ao remover arquivo do storage:', storageError);
+            }
+          }
+        }
+
+        // Remover o registro do banco
         const { error } = await supabase
           .from('videos')
           .delete()
