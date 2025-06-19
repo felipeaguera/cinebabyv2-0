@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,16 +40,63 @@ const PatientVideos = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const findPatientById = () => {
+    const findPatientByQRCode = () => {
       if (!qrCode) {
-        console.log('Nenhum QR Code fornecido na URL');
+        console.log('❌ Nenhum QR Code fornecido na URL');
         setLoading(false);
         return;
       }
       
-      console.log('🔍 Procurando paciente com QR Code:', qrCode);
+      console.log('🔍 Iniciando busca por QR Code:', qrCode);
       
-      // Primeiro, verificar se há clínicas no localStorage
+      // NOVA ESTRATÉGIA: Buscar primeiro no mapeamento de QR Codes
+      const qrMapping = localStorage.getItem('cinebaby_qr_mapping');
+      if (qrMapping) {
+        const mappings = JSON.parse(qrMapping);
+        console.log('📋 Mapeamentos QR encontrados:', Object.keys(mappings).length);
+        
+        if (mappings[qrCode]) {
+          const mapping = mappings[qrCode];
+          console.log('✅ Mapeamento encontrado:', mapping);
+          
+          // Buscar dados completos da paciente
+          const storedPatients = localStorage.getItem(`cinebaby_patients_${mapping.clinicId}`);
+          if (storedPatients) {
+            const patients = JSON.parse(storedPatients);
+            const foundPatient = patients.find((p: Patient) => p.id === mapping.patientId);
+            
+            if (foundPatient) {
+              console.log('✅ Paciente encontrada via mapeamento:', foundPatient.name);
+              setPatient(foundPatient);
+              
+              // Buscar dados da clínica
+              const storedClinics = localStorage.getItem("cinebaby_clinics");
+              if (storedClinics) {
+                const clinics = JSON.parse(storedClinics);
+                const foundClinic = clinics.find((c: Clinic) => c.id === mapping.clinicId);
+                if (foundClinic) {
+                  setClinic(foundClinic);
+                }
+              }
+              
+              // Carregar vídeos da paciente
+              const storedVideos = localStorage.getItem(`cinebaby_videos_${foundPatient.id}`);
+              if (storedVideos) {
+                const parsedVideos = JSON.parse(storedVideos);
+                console.log('🎥 Vídeos encontrados:', parsedVideos.length);
+                setVideos(parsedVide os);
+              }
+              
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      }
+      
+      console.log('⚠️ Mapeamento QR não encontrado, tentando busca antiga...');
+      
+      // FALLBACK: Busca tradicional (para compatibilidade com QR codes antigos)
       const storedClinics = localStorage.getItem("cinebaby_clinics");
       if (!storedClinics) {
         console.log('❌ Nenhuma clínica encontrada no localStorage');
@@ -68,12 +116,26 @@ const PatientVideos = () => {
           const patients = JSON.parse(storedPatients);
           console.log(`👥 Pacientes encontrados na clínica ${clinic.name}:`, patients.length);
           
-          // Buscar paciente pelo ID (convertendo ambos para string)
+          // Buscar paciente pelo ID (tentando ambas as possibilidades)
           const foundPatient = patients.find((patient: Patient) => {
-            const patientIdStr = patient.id.toString();
-            const qrCodeStr = qrCode.toString();
-            console.log(`🔄 Comparando: paciente ID "${patientIdStr}" com QR Code "${qrCodeStr}"`);
-            return patientIdStr === qrCodeStr;
+            // Tentar buscar por ID direto
+            if (patient.id.toString() === qrCode) {
+              console.log(`✅ Paciente encontrada por ID: ${patient.name}`);
+              return true;
+            }
+            
+            // Buscar nos vídeos da paciente
+            const storedVideos = localStorage.getItem(`cinebaby_videos_${patient.id}`);
+            if (storedVideos) {
+              const videos = JSON.parse(storedVideos);
+              const hasMatchingVideo = videos.some((video: Video) => video.qrCode === qrCode);
+              if (hasMatchingVideo) {
+                console.log(`✅ Paciente encontrada por vídeo QR: ${patient.name}`);
+                return true;
+              }
+            }
+            
+            return false;
           });
           
           if (foundPatient) {
@@ -83,8 +145,6 @@ const PatientVideos = () => {
             
             // Carregar vídeos da paciente
             const storedVideos = localStorage.getItem(`cinebaby_videos_${foundPatient.id}`);
-            console.log(`🎥 Verificando vídeos para paciente ${foundPatient.id}:`, storedVideos ? 'encontrados' : 'não encontrados');
-            
             if (storedVideos) {
               const parsedVideos = JSON.parse(storedVideos);
               console.log('📹 Vídeos carregados:', parsedVideos.length);
@@ -104,21 +164,21 @@ const PatientVideos = () => {
       
       // Se chegou até aqui, não encontrou a paciente
       console.log('❌ Paciente não encontrada com QR Code:', qrCode);
-      console.log('🔧 Debug: Mostrando todos os dados do localStorage...');
+      console.log('🔧 Debug completo do localStorage:');
       
       // Debug completo do localStorage
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key?.startsWith('cinebaby_')) {
           const data = localStorage.getItem(key);
-          console.log(`📋 ${key}:`, data);
+          console.log(`📋 ${key}:`, JSON.parse(data || '{}'));
         }
       }
       
       setLoading(false);
     };
 
-    findPatientById();
+    findPatientByQRCode();
   }, [qrCode]);
 
   if (loading) {
@@ -146,13 +206,16 @@ const PatientVideos = () => {
             className="mx-auto h-16 w-auto mb-4"
           />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">QR Code Inválido</h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-4">
             O QR Code escaneado não foi encontrado em nosso sistema. 
             Verifique se o código está correto ou entre em contato com sua clínica.
           </p>
-          <div className="mt-4 p-3 bg-gray-100 rounded text-sm text-gray-500">
-            <p>ID procurado: {qrCode}</p>
-            <p>Abra o console do navegador (F12) para mais detalhes de debug</p>
+          <div className="mt-4 p-3 bg-gray-100 rounded text-sm">
+            <p className="font-medium">Código procurado:</p>
+            <p className="text-gray-500 break-all">{qrCode}</p>
+            <p className="text-xs text-gray-400 mt-2">
+              Abra o console do navegador (F12) para mais detalhes
+            </p>
           </div>
         </div>
       </div>
