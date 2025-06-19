@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const ClinicLogin = () => {
   const [email, setEmail] = useState("");
@@ -19,24 +20,46 @@ const ClinicLogin = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulação de login (será substituído pela integração Supabase)
-    const mockClinics = [
-      { id: 1, name: "Clínica Exemplo", email: "clinica@exemplo.com", password: "123456" }
-    ];
+    try {
+      // Buscar usuário e clínica associada
+      const { data: user, error: userError } = await supabase
+        .from('users')
+        .select(`
+          *,
+          clinics (*)
+        `)
+        .eq('email', email)
+        .eq('password', password)
+        .eq('role', 'clinic')
+        .single();
 
-    const clinic = mockClinics.find(c => c.email === email && c.password === password);
-    
-    if (clinic) {
-      localStorage.setItem("cinebaby_clinic", JSON.stringify(clinic));
+      if (userError || !user) {
+        toast({
+          title: "Erro no login",
+          description: "Email ou senha incorretos.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Salvar informações da clínica
+      localStorage.setItem("cinebaby_clinic", JSON.stringify({
+        user: user,
+        clinic: user.clinics?.[0] || null
+      }));
+      
       toast({
         title: "Login realizado com sucesso!",
-        description: `Bem-vinda, ${clinic.name}!`,
+        description: `Bem-vinda, ${user.clinics?.[0]?.name || user.email}!`,
       });
+      
       navigate("/clinic/dashboard");
-    } else {
+    } catch (err) {
+      console.error('Erro no login:', err);
       toast({
         title: "Erro no login",
-        description: "Email ou senha incorretos.",
+        description: "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
     }
@@ -110,16 +133,6 @@ const ClinicLogin = () => {
                 {isLoading ? "Entrando..." : "Entrar"}
               </Button>
             </form>
-            
-            <div className="mt-6 text-center p-4 bg-teal-50 rounded-xl">
-              <p className="text-sm text-teal-600 font-medium">
-                Para demonstração:
-              </p>
-              <p className="text-xs text-teal-500 mt-1">
-                Email: clinica@exemplo.com<br />
-                Senha: 123456
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>

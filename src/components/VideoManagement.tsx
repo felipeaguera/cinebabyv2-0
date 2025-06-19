@@ -7,34 +7,32 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Video, Trash2, Eye, Users, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Patient {
-  id: number;
+  id: string;
   name: string;
-  motherName: string;
-  birthDate: string;
-  gestationalAge: string;
-  clinicId: number;
-  qrCode: string;
+  mother_name: string;
+  birth_date: string;
+  gestational_age: string;
+  qr_code: string;
+  clinic_id: string;
+  clinics?: {
+    name: string;
+  };
   videos?: PatientVideo[];
 }
 
 interface PatientVideo {
   id: string;
-  name: string;
-  url: string;
-  uploadDate: string;
-  size: number;
-}
-
-interface Clinic {
-  id: number;
-  name: string;
+  file_name: string;
+  file_url?: string;
+  upload_date: string;
+  file_size: number;
 }
 
 const VideoManagement = () => {
   const [allPatients, setAllPatients] = useState<Patient[]>([]);
-  const [clinics, setClinics] = useState<Clinic[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<PatientVideo | null>(null);
   const { toast } = useToast();
 
@@ -42,54 +40,57 @@ const VideoManagement = () => {
     loadAllData();
   }, []);
 
-  const loadAllData = () => {
-    // Carregar clínicas
-    const storedClinics = localStorage.getItem("cinebaby_clinics");
-    const clinicsData = storedClinics ? JSON.parse(storedClinics) : [];
-    setClinics(clinicsData);
+  const loadAllData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('patients')
+        .select(`
+          *,
+          clinics (
+            name
+          ),
+          videos (
+            id,
+            file_name,
+            file_url,
+            upload_date,
+            file_size
+          )
+        `);
 
-    // Carregar todos os pacientes de todas as clínicas
-    const allPatientsData: Patient[] = [];
-    
-    clinicsData.forEach((clinic: Clinic) => {
-      const patientsKey = `cinebaby_patients_${clinic.id}`;
-      const storedPatients = localStorage.getItem(patientsKey);
-      
-      if (storedPatients) {
-        const patients = JSON.parse(storedPatients);
-        patients.forEach((patient: Patient) => {
-          // Carregar vídeos do paciente
-          const videosKey = `cinebaby_videos_${patient.qrCode}`;
-          const storedVideos = localStorage.getItem(videosKey);
-          const videos = storedVideos ? JSON.parse(storedVideos) : [];
-          
-          allPatientsData.push({
-            ...patient,
-            clinicId: clinic.id,
-            videos: videos
-          });
+      if (error) {
+        console.error('Erro ao carregar dados:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar os dados.",
+          variant: "destructive",
         });
+        return;
       }
-    });
 
-    setAllPatients(allPatientsData);
+      setAllPatients(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar dados:', err);
+    }
   };
 
-  const getClinicName = (clinicId: number) => {
-    const clinic = clinics.find(c => c.id === clinicId);
-    return clinic ? clinic.name : "Clínica não encontrada";
-  };
-
-  const handleDeleteVideo = (patient: Patient, videoId: string) => {
+  const handleDeleteVideo = async (videoId: string) => {
     if (window.confirm("Tem certeza que deseja excluir este vídeo? Esta ação não pode ser desfeita.")) {
-      const videosKey = `cinebaby_videos_${patient.qrCode}`;
-      const storedVideos = localStorage.getItem(videosKey);
-      
-      if (storedVideos) {
-        const videos = JSON.parse(storedVideos);
-        const updatedVideos = videos.filter((video: PatientVideo) => video.id !== videoId);
-        localStorage.setItem(videosKey, JSON.stringify(updatedVideos));
-        
+      try {
+        const { error } = await supabase
+          .from('videos')
+          .delete()
+          .eq('id', videoId);
+
+        if (error) {
+          toast({
+            title: "Erro",
+            description: "Erro ao excluir vídeo: " + error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
         // Recarregar dados
         loadAllData();
         
@@ -97,6 +98,8 @@ const VideoManagement = () => {
           title: "Vídeo excluído",
           description: "O vídeo foi removido com sucesso.",
         });
+      } catch (err) {
+        console.error('Erro ao excluir vídeo:', err);
       }
     }
   };
@@ -187,9 +190,9 @@ const VideoManagement = () => {
                   <div className="flex justify-between items-start mb-4">
                     <div>
                       <h3 className="text-lg font-semibold text-gray-800">{patient.name}</h3>
-                      <p className="text-sm text-gray-600">Mãe: {patient.motherName}</p>
-                      <p className="text-sm text-gray-600">Clínica: {getClinicName(patient.clinicId)}</p>
-                      <p className="text-sm text-gray-600">Data de Nascimento: {formatDate(patient.birthDate)}</p>
+                      <p className="text-sm text-gray-600">Mãe: {patient.mother_name}</p>
+                      <p className="text-sm text-gray-600">Clínica: {patient.clinics?.name || 'N/A'}</p>
+                      <p className="text-sm text-gray-600">Data de Nascimento: {formatDate(patient.birth_date)}</p>
                     </div>
                     <Badge variant="outline" className="bg-blue-100 text-blue-800">
                       {patient.videos?.length || 0} vídeo{(patient.videos?.length || 0) !== 1 ? 's' : ''}
@@ -210,44 +213,46 @@ const VideoManagement = () => {
                         <TableBody>
                           {patient.videos.map((video) => (
                             <TableRow key={video.id} className="bg-white">
-                              <TableCell className="font-medium">{video.name}</TableCell>
-                              <TableCell>{formatDate(video.uploadDate)}</TableCell>
-                              <TableCell>{formatFileSize(video.size)}</TableCell>
+                              <TableCell className="font-medium">{video.file_name}</TableCell>
+                              <TableCell>{formatDate(video.upload_date)}</TableCell>
+                              <TableCell>{formatFileSize(video.file_size)}</TableCell>
                               <TableCell>
                                 <div className="flex items-center justify-center space-x-2">
-                                  <Dialog>
-                                    <DialogTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setSelectedVideo(video)}
-                                        className="hover:bg-blue-50 hover:border-blue-300"
-                                      >
-                                        <Eye className="h-4 w-4" />
-                                      </Button>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-4xl">
-                                      <DialogHeader>
-                                        <DialogTitle>{video.name}</DialogTitle>
-                                        <DialogDescription>
-                                          Paciente: {patient.name} | Upload: {formatDate(video.uploadDate)}
-                                        </DialogDescription>
-                                      </DialogHeader>
-                                      <div className="mt-4">
-                                        <video
-                                          controls
-                                          className="w-full max-h-96 rounded-lg"
-                                          src={video.url}
+                                  {video.file_url && (
+                                    <Dialog>
+                                      <DialogTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => setSelectedVideo(video)}
+                                          className="hover:bg-blue-50 hover:border-blue-300"
                                         >
-                                          Seu navegador não suporta a reprodução de vídeo.
-                                        </video>
-                                      </div>
-                                    </DialogContent>
-                                  </Dialog>
+                                          <Eye className="h-4 w-4" />
+                                        </Button>
+                                      </DialogTrigger>
+                                      <DialogContent className="max-w-4xl">
+                                        <DialogHeader>
+                                          <DialogTitle>{video.file_name}</DialogTitle>
+                                          <DialogDescription>
+                                            Paciente: {patient.name} | Upload: {formatDate(video.upload_date)}
+                                          </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="mt-4">
+                                          <video
+                                            controls
+                                            className="w-full max-h-96 rounded-lg"
+                                            src={video.file_url}
+                                          >
+                                            Seu navegador não suporta a reprodução de vídeo.
+                                          </video>
+                                        </div>
+                                      </DialogContent>
+                                    </Dialog>
+                                  )}
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => handleDeleteVideo(patient, video.id)}
+                                    onClick={() => handleDeleteVideo(video.id)}
                                     className="hover:bg-red-50 hover:border-red-300 text-red-600"
                                   >
                                     <Trash2 className="h-4 w-4" />

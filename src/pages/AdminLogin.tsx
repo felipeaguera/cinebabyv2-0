@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -19,18 +20,40 @@ const AdminLogin = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Verificar credenciais fixas do admin
-    if (email === "admin@cinebaby.online" && password === "admin123") {
-      localStorage.setItem("cinebaby_admin", "true");
+    try {
+      // Verificar credenciais na tabela users
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .eq('password', password)
+        .eq('role', 'admin')
+        .single();
+
+      if (error || !user) {
+        toast({
+          title: "Erro no login",
+          description: "Email ou senha incorretos, ou usuário não é administrador.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Salvar informações do admin
+      localStorage.setItem("cinebaby_admin", JSON.stringify(user));
+      
       toast({
         title: "Login realizado com sucesso!",
         description: "Bem-vindo ao painel administrativo.",
       });
+      
       navigate("/admin/dashboard");
-    } else {
+    } catch (err) {
+      console.error('Erro no login:', err);
       toast({
         title: "Erro no login",
-        description: "Email ou senha incorretos.",
+        description: "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
     }

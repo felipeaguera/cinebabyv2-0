@@ -9,16 +9,162 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      clinics: {
+        Row: {
+          address: string
+          city: string
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone: string | null
+          user_id: string | null
+        }
+        Insert: {
+          address: string
+          city: string
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          address?: string
+          city?: string
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clinics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          birth_date: string
+          clinic_id: string
+          created_at: string
+          gestational_age: string
+          id: string
+          mother_name: string
+          name: string
+          phone: string | null
+          qr_code: string
+        }
+        Insert: {
+          birth_date: string
+          clinic_id: string
+          created_at?: string
+          gestational_age: string
+          id?: string
+          mother_name: string
+          name: string
+          phone?: string | null
+          qr_code: string
+        }
+        Update: {
+          birth_date?: string
+          clinic_id?: string
+          created_at?: string
+          gestational_age?: string
+          id?: string
+          mother_name?: string
+          name?: string
+          phone?: string | null
+          qr_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          password: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          password: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          password?: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
+      videos: {
+        Row: {
+          file_name: string
+          file_size: number
+          file_url: string | null
+          id: string
+          patient_id: string
+          upload_date: string
+        }
+        Insert: {
+          file_name: string
+          file_size: number
+          file_url?: string | null
+          id?: string
+          patient_id: string
+          upload_date?: string
+        }
+        Update: {
+          file_name?: string
+          file_size?: number
+          file_url?: string | null
+          id?: string
+          patient_id?: string
+          upload_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: {
+        Args: { user_email: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "admin" | "clinic"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +279,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["admin", "clinic"],
+    },
   },
 } as const

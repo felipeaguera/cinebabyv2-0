@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,53 +11,87 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LogOut, Plus, Building2, Edit, Trash2, Video, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import EditClinicDialog from "@/components/EditClinicDialog";
+import { supabase } from "@/integrations/supabase/client";
 import VideoManagement from "@/components/VideoManagement";
 
 interface Clinic {
-  id: number;
+  id: string;
   name: string;
   address: string;
   city: string;
   email: string;
+  phone?: string;
+  user_id?: string;
+  created_at: string;
+}
+
+interface User {
+  id: string;
+  email: string;
   password: string;
-  createdAt: string;
+  role: string;
+  created_at: string;
 }
 
 const AdminDashboard = () => {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [isAddingClinic, setIsAddingClinic] = useState(false);
-  const [editingClinic, setEditingClinic] = useState<Clinic | null>(null);
-  const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const [newClinic, setNewClinic] = useState({
     name: "",
     address: "",
     city: "",
     email: "",
-    password: ""
+    password: "",
+    phone: ""
   });
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    const isAdmin = localStorage.getItem("cinebaby_admin");
-    if (!isAdmin) {
+    const adminData = localStorage.getItem("cinebaby_admin");
+    if (!adminData) {
       navigate("/admin/login");
       return;
     }
 
-    const storedClinics = localStorage.getItem("cinebaby_clinics");
-    if (storedClinics) {
-      setClinics(JSON.parse(storedClinics));
-    }
+    loadClinics();
   }, [navigate]);
+
+  const loadClinics = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clinics')
+        .select(`
+          *,
+          users!clinics_user_id_fkey (
+            email,
+            password
+          )
+        `);
+
+      if (error) {
+        console.error('Erro ao carregar clínicas:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar as clínicas.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setClinics(data || []);
+    } catch (err) {
+      console.error('Erro ao carregar clínicas:', err);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem("cinebaby_admin");
     navigate("/");
   };
 
-  const handleAddClinic = () => {
+  const handleAddClinic = async () => {
     if (!newClinic.name || !newClinic.address || !newClinic.city || !newClinic.email || !newClinic.password) {
       toast({
         title: "Erro",
@@ -66,51 +101,97 @@ const AdminDashboard = () => {
       return;
     }
 
-    const clinic: Clinic = {
-      id: Date.now(),
-      ...newClinic,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      // Primeiro criar o usuário
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .insert({
+          email: newClinic.email,
+          password: newClinic.password,
+          role: 'clinic'
+        })
+        .select()
+        .single();
 
-    const updatedClinics = [...clinics, clinic];
-    setClinics(updatedClinics);
-    localStorage.setItem("cinebaby_clinics", JSON.stringify(updatedClinics));
+      if (userError) {
+        toast({
+          title: "Erro",
+          description: "Erro ao criar usuário: " + userError.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
-    setNewClinic({ name: "", address: "", city: "", email: "", password: "" });
-    setIsAddingClinic(false);
+      // Depois criar a clínica
+      const { data: clinicData, error: clinicError } = await supabase
+        .from('clinics')
+        .insert({
+          name: newClinic.name,
+          address: newClinic.address,
+          city: newClinic.city,
+          email: newClinic.email,
+          phone: newClinic.phone,
+          user_id: userData.id
+        })
+        .select()
+        .single();
 
-    toast({
-      title: "Clínica cadastrada!",
-      description: `${clinic.name} foi cadastrada com sucesso.`,
-    });
-  };
+      if (clinicError) {
+        toast({
+          title: "Erro",
+          description: "Erro ao criar clínica: " + clinicError.message,
+          variant: "destructive",
+        });
+        return;
+      }
 
-  const handleEditClinic = (updatedClinic: Clinic) => {
-    const updatedClinics = clinics.map(clinic => 
-      clinic.id === updatedClinic.id ? updatedClinic : clinic
-    );
-    setClinics(updatedClinics);
-    localStorage.setItem("cinebaby_clinics", JSON.stringify(updatedClinics));
-    setEditingClinic(null);
-  };
+      setNewClinic({ name: "", address: "", city: "", email: "", password: "", phone: "" });
+      setIsAddingClinic(false);
+      loadClinics();
 
-  const handleDeleteClinic = (clinicId: number) => {
-    if (window.confirm("Tem certeza que deseja excluir esta clínica? Esta ação não pode ser desfeita.")) {
-      const updatedClinics = clinics.filter(clinic => clinic.id !== clinicId);
-      setClinics(updatedClinics);
-      localStorage.setItem("cinebaby_clinics", JSON.stringify(updatedClinics));
-      
-      // Remove também os dados da clínica
-      localStorage.removeItem(`cinebaby_patients_${clinicId}`);
-      
       toast({
-        title: "Clínica excluída",
-        description: "A clínica foi removida com sucesso.",
+        title: "Clínica cadastrada!",
+        description: `${clinicData.name} foi cadastrada com sucesso.`,
+      });
+    } catch (err) {
+      console.error('Erro ao cadastrar clínica:', err);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro inesperado.",
+        variant: "destructive",
       });
     }
   };
 
-  const togglePasswordVisibility = (clinicId: number) => {
+  const handleDeleteClinic = async (clinicId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir esta clínica? Esta ação não pode ser desfeita.")) {
+      try {
+        const { error } = await supabase
+          .from('clinics')
+          .delete()
+          .eq('id', clinicId);
+
+        if (error) {
+          toast({
+            title: "Erro",
+            description: "Erro ao excluir clínica: " + error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        loadClinics();
+        toast({
+          title: "Clínica excluída",
+          description: "A clínica foi removida com sucesso.",
+        });
+      } catch (err) {
+        console.error('Erro ao excluir clínica:', err);
+      }
+    }
+  };
+
+  const togglePasswordVisibility = (clinicId: string) => {
     setVisiblePasswords(prev => ({
       ...prev,
       [clinicId]: !prev[clinicId]
@@ -206,6 +287,15 @@ const AdminDashboard = () => {
                         />
                       </div>
                       <div className="space-y-2">
+                        <Label htmlFor="phone">Telefone</Label>
+                        <Input
+                          id="phone"
+                          value={newClinic.phone}
+                          onChange={(e) => setNewClinic({ ...newClinic, phone: e.target.value })}
+                          placeholder="Ex: (11) 99999-9999"
+                        />
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="email">Email de Login</Label>
                         <Input
                           id="email"
@@ -273,7 +363,7 @@ const AdminDashboard = () => {
                             <TableCell>
                               <div className="flex items-center space-x-2">
                                 <span className="font-mono text-sm">
-                                  {visiblePasswords[clinic.id] ? clinic.password : '••••••••'}
+                                  {visiblePasswords[clinic.id] ? (clinic as any).users?.password || '••••••••' : '••••••••'}
                                 </span>
                                 <Button
                                   variant="ghost"
@@ -296,14 +386,6 @@ const AdminDashboard = () => {
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center justify-center space-x-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setEditingClinic(clinic)}
-                                  className="hover:bg-purple-50 hover:border-purple-300"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -333,15 +415,6 @@ const AdminDashboard = () => {
           </TabsContent>
         </Tabs>
       </main>
-
-      {editingClinic && (
-        <EditClinicDialog
-          clinic={editingClinic}
-          isOpen={!!editingClinic}
-          onClose={() => setEditingClinic(null)}
-          onSave={handleEditClinic}
-        />
-      )}
     </div>
   );
 };
