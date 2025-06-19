@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,14 +49,29 @@ const ClinicDashboard = () => {
 
   useEffect(() => {
     const clinicData = localStorage.getItem("cinebaby_clinic");
+    console.log('🔍 Dados da clínica no localStorage:', clinicData);
+    
     if (!clinicData) {
+      console.log('❌ Nenhum dado de clínica encontrado, redirecionando para login');
       navigate("/clinic/login");
       return;
     }
 
-    const parsedClinic = JSON.parse(clinicData);
-    setClinic(parsedClinic);
-    loadPatientsFromSupabase(parsedClinic.id);
+    try {
+      const parsedClinic = JSON.parse(clinicData);
+      console.log('✅ Clínica carregada:', parsedClinic);
+      setClinic(parsedClinic);
+      
+      if (parsedClinic.id) {
+        loadPatientsFromSupabase(parsedClinic.id);
+      } else {
+        console.log('❌ ID da clínica não encontrado');
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('❌ Erro ao fazer parse dos dados da clínica:', error);
+      navigate("/clinic/login");
+    }
   }, [navigate]);
 
   const loadPatientsFromSupabase = async (clinicId: string) => {
@@ -125,6 +141,10 @@ const ClinicDashboard = () => {
   };
 
   const handleAddPatient = async () => {
+    console.log('🔍 Iniciando cadastro de paciente...');
+    console.log('🔍 Dados do novo paciente:', newPatient);
+    console.log('🔍 Dados da clínica atual:', clinic);
+
     if (!newPatient.name) {
       toast({
         title: "Erro",
@@ -134,7 +154,15 @@ const ClinicDashboard = () => {
       return;
     }
 
-    if (!clinic) return;
+    if (!clinic || !clinic.id) {
+      console.error('❌ Clínica não carregada ou sem ID:', clinic);
+      toast({
+        title: "Erro",
+        description: "Erro de sessão da clínica. Faça login novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const patientData = {
@@ -146,6 +174,8 @@ const ClinicDashboard = () => {
         clinic_id: clinic.id,
         qr_code: `PATIENT_${Date.now()}`
       };
+
+      console.log('🔍 Dados que serão inseridos:', patientData);
 
       const { data, error } = await supabase
         .from('patients')
@@ -265,8 +295,8 @@ const ClinicDashboard = () => {
                 />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-white drop-shadow-lg">{clinic.name}</h1>
-                <p className="text-white/80 font-medium">{clinic.city}</p>
+                <h1 className="text-3xl font-bold text-white drop-shadow-lg">{clinic?.name || 'Carregando...'}</h1>
+                <p className="text-white/80 font-medium">{clinic?.city || ''}</p>
               </div>
             </div>
             <Button variant="outline" onClick={handleLogout} className="bg-white/20 border-white/30 text-white hover:bg-white/30 backdrop-blur-sm">
