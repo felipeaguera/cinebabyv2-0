@@ -18,6 +18,7 @@ interface Patient {
   gestational_age: string;
   qr_code: string;
   clinic_id: string;
+  created_at: string;
   clinics?: {
     name: string;
   };
