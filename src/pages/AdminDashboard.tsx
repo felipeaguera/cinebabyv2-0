@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, Plus, Building2, Edit, Trash2, Video } from "lucide-react";
+import { LogOut, Plus, Building2, Edit, Trash2, Video, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import EditClinicDialog from "@/components/EditClinicDialog";
@@ -27,6 +27,7 @@ const AdminDashboard = () => {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const [isAddingClinic, setIsAddingClinic] = useState(false);
   const [editingClinic, setEditingClinic] = useState<Clinic | null>(null);
+  const [visiblePasswords, setVisiblePasswords] = useState<Record<number, boolean>>({});
   const [newClinic, setNewClinic] = useState({
     name: "",
     address: "",
@@ -109,6 +110,13 @@ const AdminDashboard = () => {
     }
   };
 
+  const togglePasswordVisibility = (clinicId: number) => {
+    setVisiblePasswords(prev => ({
+      ...prev,
+      [clinicId]: !prev[clinicId]
+    }));
+  };
+
   return (
     <div className="min-h-screen cinebaby-gradient">
       <header className="bg-white/10 backdrop-blur-md border-b border-white/20">
@@ -117,7 +125,7 @@ const AdminDashboard = () => {
             <div className="flex items-center space-x-4">
               <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
                 <img 
-                  src="/lovable-uploads/logo-cinebaby.png" 
+                  src="/lovable-uploads/0f255407-3789-418f-8a06-69187f941576.png" 
                   alt="CineBaby Logo" 
                   className="h-12 w-auto"
                 />
@@ -251,6 +259,7 @@ const AdminDashboard = () => {
                           <TableHead className="font-semibold">Nome</TableHead>
                           <TableHead className="font-semibold">Cidade</TableHead>
                           <TableHead className="font-semibold">Email</TableHead>
+                          <TableHead className="font-semibold">Senha</TableHead>
                           <TableHead className="font-semibold">Status</TableHead>
                           <TableHead className="font-semibold text-center">Ações</TableHead>
                         </TableRow>
@@ -261,6 +270,25 @@ const AdminDashboard = () => {
                             <TableCell className="font-medium">{clinic.name}</TableCell>
                             <TableCell>{clinic.city}</TableCell>
                             <TableCell>{clinic.email}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <span className="font-mono text-sm">
+                                  {visiblePasswords[clinic.id] ? clinic.password : '••••••••'}
+                                </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => togglePasswordVisibility(clinic.id)}
+                                  className="h-6 w-6 p-0 hover:bg-purple-100"
+                                >
+                                  {visiblePasswords[clinic.id] ? (
+                                    <EyeOff className="h-3 w-3" />
+                                  ) : (
+                                    <Eye className="h-3 w-3" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TableCell>
                             <TableCell>
                               <Badge className="bg-gradient-to-r from-green-100 to-green-200 text-green-800 border-green-300">
                                 Ativa
