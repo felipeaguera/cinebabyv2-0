@@ -25,10 +25,10 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
   const { toast } = useToast();
 
   const handleAddClinic = async () => {
-    if (!newClinic.name || !newClinic.address || !newClinic.city || !newClinic.email) {
+    if (!newClinic.name || !newClinic.address || !newClinic.city || !newClinic.email || !newClinic.password) {
       toast({
         title: "Erro",
-        description: "Nome, endereço, cidade e email são obrigatórios.",
+        description: "Nome, endereço, cidade, email e senha são obrigatórios.",
         variant: "destructive",
       });
       return;
@@ -140,6 +140,16 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
               value={newClinic.email}
               onChange={(e) => setNewClinic({ ...newClinic, email: e.target.value })}
               placeholder="clinica@exemplo.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password">Senha</Label>
+            <Input
+              id="password"
+              type="password"
+              value={newClinic.password}
+              onChange={(e) => setNewClinic({ ...newClinic, password: e.target.value })}
+              placeholder="Senha de acesso"
             />
           </div>
           <Button onClick={handleAddClinic} className="w-full cinebaby-button-primary">
