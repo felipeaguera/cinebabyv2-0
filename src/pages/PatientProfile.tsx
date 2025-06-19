@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Upload, QrCode, Printer, Play, Calendar, Trash2 } from "lucide-react";
+import { ArrowLeft, Upload, QrCode, Printer, Play, Calendar, Trash2, Eye } from "lucide-react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -24,6 +24,7 @@ interface Video {
   uploadDate: string;
   fileSize: string;
   qrCode: string;
+  fileUrl?: string;
 }
 
 interface Clinic {
@@ -41,6 +42,8 @@ const PatientProfile = () => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedVideoForPreview, setSelectedVideoForPreview] = useState<Video | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -87,6 +90,10 @@ const PatientProfile = () => {
         return;
       }
       setUploadFile(file);
+      
+      // Criar preview do vídeo
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
     }
   };
 
@@ -102,7 +109,8 @@ const PatientProfile = () => {
       fileName: uploadFile.name,
       uploadDate: new Date().toISOString(),
       fileSize: (uploadFile.size / (1024 * 1024)).toFixed(2) + ' MB',
-      qrCode: `${patient.id}-${Date.now()}`
+      qrCode: `${patient.id}-${Date.now()}`,
+      fileUrl: URL.createObjectURL(uploadFile)
     };
 
     const updatedVideos = [...videos, video];
@@ -121,6 +129,7 @@ const PatientProfile = () => {
     }
 
     setUploadFile(null);
+    setPreviewUrl(null);
     setIsUploading(false);
 
     toast({
@@ -145,87 +154,157 @@ const PatientProfile = () => {
               .no-print { display: none; }
             }
             body {
-              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+              font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
               display: flex;
               justify-content: center;
               align-items: center;
               min-height: 100vh;
               margin: 0;
-              background: linear-gradient(135deg, #f5f3ff 0%, #fdf2f8 100%);
+              background: linear-gradient(135deg, #7c3aed 0%, #5fc6c8 100%);
             }
             .card {
               background: white;
-              border-radius: 20px;
-              padding: 40px;
+              border-radius: 24px;
+              padding: 50px;
               text-align: center;
-              box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-              max-width: 400px;
+              box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+              max-width: 450px;
               width: 100%;
+              position: relative;
+              overflow: hidden;
+            }
+            .card::before {
+              content: '';
+              position: absolute;
+              top: 0;
+              left: 0;
+              right: 0;
+              height: 6px;
+              background: linear-gradient(90deg, #7c3aed 0%, #5fc6c8 100%);
+            }
+            .logo-container {
+              background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+              width: 100px;
+              height: 100px;
+              border-radius: 20px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin: 0 auto 25px;
+              box-shadow: 0 8px 16px rgba(0,0,0,0.1);
             }
             .logo {
-              width: 80px;
+              width: 60px;
               height: auto;
-              margin-bottom: 20px;
             }
             .patient-name {
-              font-size: 24px;
-              font-weight: bold;
-              color: #7c3aed;
-              margin: 20px 0 10px 0;
+              font-size: 28px;
+              font-weight: 700;
+              background: linear-gradient(135deg, #7c3aed 0%, #5fc6c8 100%);
+              -webkit-background-clip: text;
+              -webkit-text-fill-color: transparent;
+              background-clip: text;
+              margin: 25px 0 10px 0;
             }
             .clinic-name {
-              font-size: 16px;
-              color: #ec4899;
-              margin-bottom: 30px;
+              font-size: 18px;
+              color: #6b7280;
+              margin-bottom: 35px;
+              font-weight: 500;
+            }
+            .qr-section {
+              background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+              border-radius: 16px;
+              padding: 30px;
+              margin: 30px 0;
             }
             .qr-code {
-              width: 200px;
-              height: 200px;
-              margin: 20px auto;
-              background: #f3f4f6;
-              border: 2px solid #e5e7eb;
-              border-radius: 10px;
+              width: 220px;
+              height: 220px;
+              margin: 0 auto 20px;
+              background: white;
+              border: 3px solid #e5e7eb;
+              border-radius: 12px;
               display: flex;
               align-items: center;
               justify-content: center;
               font-size: 14px;
               color: #6b7280;
+              box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            }
+            .qr-instructions {
+              font-size: 14px;
+              color: #6b7280;
+              margin-top: 15px;
             }
             .message {
               font-size: 16px;
-              color: #6b7280;
-              line-height: 1.6;
-              margin-top: 30px;
+              color: #374151;
+              line-height: 1.8;
+              margin-top: 35px;
               font-style: italic;
+              background: linear-gradient(135deg, #fef3c7 0%, #fed7e2 100%);
+              padding: 20px;
+              border-radius: 12px;
+            }
+            .clinic-info {
+              margin-top: 30px;
+              padding-top: 25px;
+              border-top: 2px solid #e5e7eb;
+              color: #6b7280;
+              font-size: 14px;
             }
             .print-button {
-              background: #7c3aed;
+              background: linear-gradient(135deg, #7c3aed 0%, #5fc6c8 100%);
               color: white;
               border: none;
-              padding: 12px 24px;
-              border-radius: 8px;
+              padding: 15px 30px;
+              border-radius: 12px;
               font-size: 16px;
+              font-weight: 600;
               cursor: pointer;
-              margin-top: 20px;
+              margin-top: 30px;
+              box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+              transition: transform 0.2s;
             }
             .print-button:hover {
-              background: #6d28d9;
+              transform: translateY(-2px);
             }
           </style>
         </head>
         <body>
           <div class="card">
-            <img src="/lovable-uploads/4d8583ce-0aed-4b79-aa55-3c03b32e9c88.png" alt="CineBaby Logo" class="logo" />
+            <div class="logo-container">
+              <img src="/lovable-uploads/4d8583ce-0aed-4b79-aa55-3c03b32e9c88.png" alt="CineBaby Logo" class="logo" />
+            </div>
             <div class="patient-name">${patient.name}</div>
             <div class="clinic-name">${clinic.name}</div>
-            <div class="qr-code">
-              QR Code será gerado aqui<br/>
-              Código: ${patient.id}-${Date.now()}
+            
+            <div class="qr-section">
+              <div class="qr-code">
+                <div>
+                  <div style="font-weight: 600; margin-bottom: 10px;">QR Code</div>
+                  <div style="font-size: 12px; color: #9ca3af;">Será gerado aqui</div>
+                  <div style="font-size: 10px; color: #d1d5db; margin-top: 8px;">${patient.id}-${Date.now()}</div>
+                </div>
+              </div>
+              <div class="qr-instructions">
+                Escaneie este código para acessar os vídeos do seu bebê
+              </div>
             </div>
+            
             <div class="message">
-              "Reviva esse momento mágico sempre que quiser. Ver seu bebê antes do nascimento é um carinho que emociona para sempre."
+              "Reviva esse momento mágico sempre que quiser. Ver seu bebê antes do nascimento é um carinho que emociona para sempre. Cada movimento, cada imagem é um tesouro que ficará guardado no seu coração."
             </div>
-            <button class="print-button no-print" onclick="window.print()">Imprimir Cartão</button>
+            
+            <div class="clinic-info">
+              <strong>CineBaby</strong> - Momentos que emocionam para sempre<br/>
+              Em parceria com ${clinic.name}
+            </div>
+            
+            <button class="print-button no-print" onclick="window.print()">
+              Imprimir Cartão
+            </button>
           </div>
         </body>
         </html>
@@ -240,7 +319,6 @@ const PatientProfile = () => {
       setVideos(updatedVideos);
       localStorage.setItem(`cinebaby_videos_${patient?.id}`, JSON.stringify(updatedVideos));
 
-      // Atualizar contador de vídeos da paciente
       if (clinic && patient) {
         const storedPatients = localStorage.getItem(`cinebaby_patients_${clinic.id}`);
         if (storedPatients) {
@@ -318,7 +396,7 @@ const PatientProfile = () => {
                 <div className="pt-6">
                   <Button 
                     onClick={handlePrintQRCode} 
-                    className="w-full cinebaby-button-primary text-lg py-4 rounded-xl"
+                    className="w-full h-12 cinebaby-button-primary text-lg py-4 rounded-xl"
                   >
                     <Printer className="h-5 w-5 mr-2" />
                     Imprimir Cartão QR Code
@@ -356,21 +434,34 @@ const PatientProfile = () => {
                         className="mt-1"
                       />
                     </div>
-                    {uploadFile && (
-                      <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="text-sm font-medium">{uploadFile.name}</p>
-                          <p className="text-sm text-gray-500">
-                            {(uploadFile.size / (1024 * 1024)).toFixed(2)} MB
-                          </p>
+                    {uploadFile && previewUrl && (
+                      <div className="space-y-4">
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <p className="text-sm font-medium mb-3">Preview do vídeo:</p>
+                          <video
+                            src={previewUrl}
+                            controls
+                            className="w-full max-w-md rounded-lg shadow-md"
+                            style={{ maxHeight: '300px' }}
+                          >
+                            Seu navegador não suporta a reprodução de vídeo.
+                          </video>
                         </div>
-                        <Button 
-                          onClick={handleUploadVideo}
-                          disabled={isUploading}
-                          className="bg-pink-600 hover:bg-pink-700"
-                        >
-                          {isUploading ? "Enviando..." : "Enviar"}
-                        </Button>
+                        <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="text-sm font-medium">{uploadFile.name}</p>
+                            <p className="text-sm text-gray-500">
+                              {(uploadFile.size / (1024 * 1024)).toFixed(2)} MB
+                            </p>
+                          </div>
+                          <Button 
+                            onClick={handleUploadVideo}
+                            disabled={isUploading}
+                            className="bg-pink-600 hover:bg-pink-700"
+                          >
+                            {isUploading ? "Enviando..." : "Enviar"}
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -418,6 +509,17 @@ const PatientProfile = () => {
                               <QrCode className="h-4 w-4 mr-1" />
                               QR: {video.qrCode}
                             </Badge>
+                            {video.fileUrl && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedVideoForPreview(video)}
+                                className="hover:bg-blue-50 hover:border-blue-300 text-blue-600"
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Ver
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -433,6 +535,31 @@ const PatientProfile = () => {
                   )}
                 </CardContent>
               </Card>
+
+              {selectedVideoForPreview && (
+                <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-auto">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-semibold">{selectedVideoForPreview.fileName}</h3>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setSelectedVideoForPreview(null)}
+                        className="rounded-full"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                    <video
+                      src={selectedVideoForPreview.fileUrl}
+                      controls
+                      className="w-full rounded-lg shadow-lg"
+                      style={{ maxHeight: '70vh' }}
+                    >
+                      Seu navegador não suporta a reprodução de vídeo.
+                    </video>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
