@@ -35,24 +35,9 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
     }
 
     try {
-      // Criar usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: newClinic.email,
-        password: newClinic.password,
-        email_confirm: true,
-      });
+      console.log('Tentando criar clínica:', newClinic.name, newClinic.email);
 
-      if (authError) {
-        console.error('Erro ao criar usuário:', authError);
-        toast({
-          title: "Erro",
-          description: "Erro ao criar usuário: " + authError.message,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Criar a clínica
+      // Primeiro, vamos tentar criar diretamente na tabela clinics
       const { data: clinicData, error: clinicError } = await supabase
         .from('clinics')
         .insert({
@@ -60,8 +45,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
           address: newClinic.address,
           city: newClinic.city,
           email: newClinic.email,
-          phone: newClinic.phone,
-          user_id: authData.user.id
+          phone: newClinic.phone
         })
         .select()
         .single();
@@ -76,6 +60,8 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
         return;
       }
 
+      console.log('Clínica criada com sucesso:', clinicData);
+
       setNewClinic({ name: "", address: "", city: "", email: "", password: "", phone: "" });
       setIsOpen(false);
       onClinicAdded();
@@ -85,10 +71,10 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
         description: `${clinicData.name} foi cadastrada com sucesso.`,
       });
     } catch (err) {
-      console.error('Erro ao cadastrar clínica:', err);
+      console.error('Erro inesperado ao cadastrar clínica:', err);
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado.",
+        description: "Ocorreu um erro inesperado: " + (err as Error).message,
         variant: "destructive",
       });
     }
