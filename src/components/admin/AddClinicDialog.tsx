@@ -25,10 +25,10 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
   const { toast } = useToast();
 
   const handleAddClinic = async () => {
-    if (!newClinic.name || !newClinic.address || !newClinic.city || !newClinic.email || !newClinic.password) {
+    if (!newClinic.name || !newClinic.address || !newClinic.city || !newClinic.email) {
       toast({
         title: "Erro",
-        description: "Todos os campos são obrigatórios.",
+        description: "Nome, endereço, cidade e email são obrigatórios.",
         variant: "destructive",
       });
       return;
@@ -37,7 +37,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
     try {
       console.log('Tentando criar clínica:', newClinic.name, newClinic.email);
 
-      // Primeiro, vamos tentar criar diretamente na tabela clinics
+      // Criar clínica diretamente na tabela
       const { data: clinicData, error: clinicError } = await supabase
         .from('clinics')
         .insert({
@@ -45,7 +45,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
           address: newClinic.address,
           city: newClinic.city,
           email: newClinic.email,
-          phone: newClinic.phone
+          phone: newClinic.phone || null
         })
         .select()
         .single();
@@ -133,23 +133,13 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email de Login</Label>
+            <Label htmlFor="email">Email da Clínica</Label>
             <Input
               id="email"
               type="email"
               value={newClinic.email}
               onChange={(e) => setNewClinic({ ...newClinic, email: e.target.value })}
               placeholder="clinica@exemplo.com"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              value={newClinic.password}
-              onChange={(e) => setNewClinic({ ...newClinic, password: e.target.value })}
-              placeholder="Senha de acesso"
             />
           </div>
           <Button onClick={handleAddClinic} className="w-full cinebaby-button-primary">
