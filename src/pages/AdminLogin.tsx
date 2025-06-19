@@ -25,6 +25,7 @@ const AdminLogin = () => {
       const { error } = await signIn(email, password);
 
       if (error) {
+        console.error('Login error:', error);
         toast({
           title: "Erro no login",
           description: "Email ou senha incorretos.",
@@ -34,12 +35,12 @@ const AdminLogin = () => {
         return;
       }
 
+      // O redirecionamento será feito pelo useEffect no AdminDashboard
       toast({
         title: "Login realizado com sucesso!",
         description: "Bem-vindo ao painel administrativo.",
       });
       
-      navigate("/admin/dashboard");
     } catch (err) {
       console.error('Erro no login:', err);
       toast({

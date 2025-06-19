@@ -79,6 +79,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     console.log('Signing out');
     await supabase.auth.signOut();
     localStorage.removeItem("cinebaby_admin");
+    localStorage.removeItem("cinebaby_clinic");
   };
 
   return (
