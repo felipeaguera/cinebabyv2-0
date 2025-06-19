@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,10 +41,7 @@ const ClinicDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [newPatient, setNewPatient] = useState({
     name: "",
-    phone: "",
-    mother_name: "",
-    birth_date: "",
-    gestational_age: ""
+    phone: ""
   });
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -129,10 +125,10 @@ const ClinicDashboard = () => {
   };
 
   const handleAddPatient = async () => {
-    if (!newPatient.name || !newPatient.mother_name || !newPatient.birth_date || !newPatient.gestational_age) {
+    if (!newPatient.name) {
       toast({
         title: "Erro",
-        description: "Nome, nome da mãe, data de nascimento e idade gestacional são obrigatórios.",
+        description: "Nome é obrigatório.",
         variant: "destructive",
       });
       return;
@@ -144,9 +140,9 @@ const ClinicDashboard = () => {
       const patientData = {
         name: newPatient.name,
         phone: newPatient.phone || null,
-        mother_name: newPatient.mother_name,
-        birth_date: newPatient.birth_date,
-        gestational_age: newPatient.gestational_age,
+        mother_name: "Não informado", // Campo obrigatório no banco, mas não no formulário
+        birth_date: "2000-01-01", // Data padrão
+        gestational_age: "Não informado", // Campo obrigatório no banco, mas não no formulário
         clinic_id: clinic.id,
         qr_code: `PATIENT_${Date.now()}`
       };
@@ -172,7 +168,7 @@ const ClinicDashboard = () => {
       // Recarregar lista de pacientes
       await loadPatientsFromSupabase(clinic.id);
 
-      setNewPatient({ name: "", phone: "", mother_name: "", birth_date: "", gestational_age: "" });
+      setNewPatient({ name: "", phone: "" });
       setIsAddingPatient(false);
 
       toast({
@@ -313,39 +309,12 @@ const ClinicDashboard = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="mother_name">Nome da Mãe</Label>
-                    <Input
-                      id="mother_name"
-                      value={newPatient.mother_name}
-                      onChange={(e) => setNewPatient({ ...newPatient, mother_name: e.target.value })}
-                      placeholder="Ex: Maria Silva"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Telefone</Label>
+                    <Label htmlFor="phone">Telefone (opcional)</Label>
                     <Input
                       id="phone"
                       value={newPatient.phone}
                       onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
                       placeholder="(11) 99999-9999"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="birth_date">Data de Nascimento</Label>
-                    <Input
-                      id="birth_date"
-                      type="date"
-                      value={newPatient.birth_date}
-                      onChange={(e) => setNewPatient({ ...newPatient, birth_date: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="gestational_age">Idade Gestacional</Label>
-                    <Input
-                      id="gestational_age"
-                      value={newPatient.gestational_age}
-                      onChange={(e) => setNewPatient({ ...newPatient, gestational_age: e.target.value })}
-                      placeholder="Ex: 20 semanas"
                     />
                   </div>
                   <Button onClick={handleAddPatient} className="w-full cinebaby-button-secondary">
