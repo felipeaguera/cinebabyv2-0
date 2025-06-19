@@ -28,10 +28,10 @@ const EditClinicDialog = ({ clinic, isOpen, onClose, onSave }: EditClinicDialogP
   const { toast } = useToast();
 
   const handleSave = () => {
-    if (!editedClinic.name || !editedClinic.address || !editedClinic.city || !editedClinic.email || !editedClinic.password) {
+    if (!editedClinic.name || !editedClinic.address || !editedClinic.city || !editedClinic.email) {
       toast({
         title: "Erro",
-        description: "Todos os campos são obrigatórios.",
+        description: "Nome, endereço, cidade e email são obrigatórios.",
         variant: "destructive",
       });
       return;
@@ -84,23 +84,13 @@ const EditClinicDialog = ({ clinic, isOpen, onClose, onSave }: EditClinicDialogP
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="edit-email">Email de Login</Label>
+            <Label htmlFor="edit-email">Email</Label>
             <Input
               id="edit-email"
               type="email"
               value={editedClinic.email}
               onChange={(e) => setEditedClinic({ ...editedClinic, email: e.target.value })}
               placeholder="clinica@exemplo.com"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="edit-password">Senha</Label>
-            <Input
-              id="edit-password"
-              type="password"
-              value={editedClinic.password}
-              onChange={(e) => setEditedClinic({ ...editedClinic, password: e.target.value })}
-              placeholder="Senha de acesso"
             />
           </div>
           <div className="flex space-x-2">
