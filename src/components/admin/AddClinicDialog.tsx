@@ -66,17 +66,14 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
         return;
       }
 
-      // Criar usuário no Supabase Auth com confirmação automática
+      // Criar usuário no Supabase Auth SEM confirmação de email
       console.log('Criando usuário no Supabase Auth...');
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: newClinic.email,
         password: newClinic.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/clinic/login`,
-          data: {
-            clinic_name: newClinic.name,
-            email_confirm: true
-          }
+        email_confirm: true, // Confirmar email automaticamente
+        user_metadata: {
+          clinic_name: newClinic.name
         }
       });
 
@@ -87,12 +84,6 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
           toast({
             title: "Erro",
             description: "Este email já está registrado no sistema.",
-            variant: "destructive",
-          });
-        } else if (authError.message.includes('For security purposes')) {
-          toast({
-            title: "Limite de tentativas",
-            description: "Aguarde alguns segundos antes de tentar novamente.",
             variant: "destructive",
           });
         } else {
@@ -136,6 +127,9 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
       if (clinicError) {
         console.error('Erro ao criar clínica:', clinicError);
         
+        // Se deu erro na criação da clínica, tentar remover o usuário criado
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        
         toast({
           title: "Erro",
           description: "Erro ao criar clínica: " + clinicError.message,
@@ -156,7 +150,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
 
       toast({
         title: "Clínica cadastrada!",
-        description: `${clinicData.name} foi cadastrada com sucesso. A clínica pode fazer login com o email e senha fornecidos.`,
+        description: `${clinicData.name} foi cadastrada com sucesso. A clínica pode fazer login imediatamente com o email e senha fornecidos.`,
       });
     } catch (err) {
       console.error('Erro inesperado ao cadastrar clínica:', err);
@@ -182,7 +176,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
         <DialogHeader>
           <DialogTitle>Cadastrar Nova Clínica</DialogTitle>
           <DialogDescription>
-            Preencha os dados da nova clínica. Será criado um login de acesso para a clínica.
+            Preencha os dados da nova clínica. Será criado um login de acesso imediato.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

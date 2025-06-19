@@ -105,26 +105,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (error) {
         console.error('Sign in error:', error);
-        // Se o erro for de email não confirmado, tentar confirmar automaticamente
-        if (error.message.includes('Email not confirmed')) {
-          console.log('Tentando confirmar email automaticamente...');
-          // Para desenvolvimento, vamos tentar reenviar a confirmação
-          const { error: resendError } = await supabase.auth.resend({
-            type: 'signup',
-            email: email
-          });
-          
-          if (!resendError) {
-            return { 
-              error: { 
-                message: 'Email de confirmação reenviado. Por favor, verifique sua caixa de entrada.' 
-              } 
-            };
-          }
-        }
+        return { error };
       }
       
-      return { error };
+      return { error: null };
     } catch (err) {
       console.error('Unexpected error during sign in:', err);
       return { error: err };

@@ -38,13 +38,7 @@ const ClinicLogin = () => {
         console.error('❌ Erro no login:', error);
         
         // Tratar diferentes tipos de erro
-        if (error.message?.includes('Email not confirmed')) {
-          toast({
-            title: "Email não confirmado",
-            description: "Por favor, verifique seu email para confirmar a conta ou entre em contato com o administrador.",
-            variant: "destructive",
-          });
-        } else if (error.message?.includes('Invalid login credentials')) {
+        if (error.message?.includes('Invalid login credentials')) {
           toast({
             title: "Credenciais inválidas",
             description: "Email ou senha incorretos. Verifique seus dados e tente novamente.",
