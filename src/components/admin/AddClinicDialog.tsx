@@ -37,7 +37,30 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
     try {
       console.log('Tentando criar clínica:', newClinic.name, newClinic.email);
 
-      // Criar clínica diretamente na tabela
+      // Primeiro, criar o usuário na tabela users
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .insert({
+          email: newClinic.email,
+          password: newClinic.password,
+          role: 'clinic'
+        })
+        .select()
+        .single();
+
+      if (userError) {
+        console.error('Erro ao criar usuário:', userError);
+        toast({
+          title: "Erro",
+          description: "Erro ao criar usuário: " + userError.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Usuário criado com sucesso:', userData);
+
+      // Depois, criar a clínica associada ao usuário
       const { data: clinicData, error: clinicError } = await supabase
         .from('clinics')
         .insert({
@@ -45,13 +68,21 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
           address: newClinic.address,
           city: newClinic.city,
           email: newClinic.email,
-          phone: newClinic.phone || null
+          phone: newClinic.phone || null,
+          user_id: userData.id
         })
         .select()
         .single();
 
       if (clinicError) {
         console.error('Erro ao criar clínica:', clinicError);
+        
+        // Se der erro ao criar a clínica, limpar o usuário criado
+        await supabase
+          .from('users')
+          .delete()
+          .eq('id', userData.id);
+
         toast({
           title: "Erro",
           description: "Erro ao criar clínica: " + clinicError.message,
