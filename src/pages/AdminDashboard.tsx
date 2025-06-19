@@ -102,6 +102,22 @@ const AdminDashboard = () => {
     }
 
     try {
+      // Verificar se já existe um usuário com este email
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', newClinic.email)
+        .single();
+
+      if (existingUser) {
+        toast({
+          title: "Erro",
+          description: "Já existe um usuário com este email.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       // Primeiro criar o usuário
       const { data: userData, error: userError } = await supabase
         .from('users')
@@ -114,6 +130,7 @@ const AdminDashboard = () => {
         .single();
 
       if (userError) {
+        console.error('Erro ao criar usuário:', userError);
         toast({
           title: "Erro",
           description: "Erro ao criar usuário: " + userError.message,
@@ -137,6 +154,7 @@ const AdminDashboard = () => {
         .single();
 
       if (clinicError) {
+        console.error('Erro ao criar clínica:', clinicError);
         toast({
           title: "Erro",
           description: "Erro ao criar clínica: " + clinicError.message,
