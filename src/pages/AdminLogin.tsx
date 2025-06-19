@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -15,34 +15,25 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signIn } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      // Verificar credenciais na tabela users
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .eq('password', password)
-        .eq('role', 'admin')
-        .single();
+      const { error } = await signIn(email, password);
 
-      if (error || !user) {
+      if (error) {
         toast({
           title: "Erro no login",
-          description: "Email ou senha incorretos, ou usuário não é administrador.",
+          description: "Email ou senha incorretos.",
           variant: "destructive",
         });
         setIsLoading(false);
         return;
       }
 
-      // Salvar informações do admin
-      localStorage.setItem("cinebaby_admin", JSON.stringify(user));
-      
       toast({
         title: "Login realizado com sucesso!",
         description: "Bem-vindo ao painel administrativo.",
@@ -130,11 +121,11 @@ const AdminLogin = () => {
             
             <div className="mt-6 text-center p-4 bg-purple-50 rounded-xl">
               <p className="text-sm text-purple-600 font-medium">
-                Para demonstração:
+                Para criar o usuário admin, acesse o painel do Supabase e crie um usuário com:
               </p>
               <p className="text-xs text-purple-500 mt-1">
                 Email: admin@cinebaby.online<br />
-                Senha: admin123
+                Após criar, ele será automaticamente configurado como admin.
               </p>
             </div>
           </CardContent>

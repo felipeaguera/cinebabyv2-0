@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Building2, Trash2, Eye, EyeOff } from "lucide-react";
+import { Building2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -16,9 +16,6 @@ interface Clinic {
   phone?: string;
   user_id?: string;
   created_at: string;
-  users?: {
-    password: string;
-  };
 }
 
 interface ClinicTableProps {
@@ -27,7 +24,6 @@ interface ClinicTableProps {
 }
 
 const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
-  const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   const handleDeleteClinic = async (clinicId: string) => {
@@ -58,13 +54,6 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
     }
   };
 
-  const togglePasswordVisibility = (clinicId: string) => {
-    setVisiblePasswords(prev => ({
-      ...prev,
-      [clinicId]: !prev[clinicId]
-    }));
-  };
-
   if (clinics.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
@@ -83,7 +72,6 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
             <TableHead className="font-semibold">Nome</TableHead>
             <TableHead className="font-semibold">Cidade</TableHead>
             <TableHead className="font-semibold">Email</TableHead>
-            <TableHead className="font-semibold">Senha</TableHead>
             <TableHead className="font-semibold">Status</TableHead>
             <TableHead className="font-semibold text-center">Ações</TableHead>
           </TableRow>
@@ -94,25 +82,6 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
               <TableCell className="font-medium">{clinic.name}</TableCell>
               <TableCell>{clinic.city}</TableCell>
               <TableCell>{clinic.email}</TableCell>
-              <TableCell>
-                <div className="flex items-center space-x-2">
-                  <span className="font-mono text-sm">
-                    {visiblePasswords[clinic.id] ? (clinic as any).users?.password || '••••••••' : '••••••••'}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => togglePasswordVisibility(clinic.id)}
-                    className="h-6 w-6 p-0 hover:bg-purple-100"
-                  >
-                    {visiblePasswords[clinic.id] ? (
-                      <EyeOff className="h-3 w-3" />
-                    ) : (
-                      <Eye className="h-3 w-3" />
-                    )}
-                  </Button>
-                </div>
-              </TableCell>
               <TableCell>
                 <Badge className="bg-gradient-to-r from-green-100 to-green-200 text-green-800 border-green-300">
                   Ativa

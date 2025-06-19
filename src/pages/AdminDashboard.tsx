@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Building2, Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import VideoManagement from "@/components/VideoManagement";
 import AdminHeader from "@/components/admin/AdminHeader";
 import AddClinicDialog from "@/components/admin/AddClinicDialog";
@@ -19,35 +20,34 @@ interface Clinic {
   phone?: string;
   user_id?: string;
   created_at: string;
-  users?: {
-    password: string;
-  };
 }
 
 const AdminDashboard = () => {
   const [clinics, setClinics] = useState<Clinic[]>([]);
   const navigate = useNavigate();
+  const { user, loading, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
-    const adminData = localStorage.getItem("cinebaby_admin");
-    if (!adminData) {
+    if (!loading && !user) {
       navigate("/admin/login");
       return;
     }
 
-    loadClinics();
-  }, [navigate]);
+    if (!loading && user && !isAdmin) {
+      navigate("/");
+      return;
+    }
+
+    if (user && isAdmin) {
+      loadClinics();
+    }
+  }, [user, loading, isAdmin, navigate]);
 
   const loadClinics = async () => {
     try {
       const { data, error } = await supabase
         .from('clinics')
-        .select(`
-          *,
-          users!clinics_user_id_fkey (
-            password
-          )
-        `);
+        .select('*');
 
       if (error) {
         console.error('Erro ao carregar clínicas:', error);
@@ -60,10 +60,22 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("cinebaby_admin");
+  const handleLogout = async () => {
+    await signOut();
     navigate("/");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen cinebaby-gradient flex items-center justify-center">
+        <div className="text-white text-xl">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (!user || !isAdmin) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen cinebaby-gradient">
