@@ -561,16 +561,8 @@ const PatientProfile = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <Label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Nome da Mãe</Label>
-                  <p className="text-lg font-medium mt-1">{patient.mother_name}</p>
-                </div>
-                <div>
                   <Label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Telefone</Label>
                   <p className="text-lg font-medium mt-1">{patient.phone || 'Não informado'}</p>
-                </div>
-                <div>
-                  <Label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Idade Gestacional</Label>
-                  <p className="text-lg font-medium mt-1">{patient.gestational_age}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total de Vídeos</Label>
