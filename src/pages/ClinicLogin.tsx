@@ -23,17 +23,14 @@ const ClinicLogin = () => {
     try {
       console.log('🔍 Tentando fazer login com:', email);
 
-      // Buscar usuário primeiro
-      const { data: user, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .eq('password', password)
-        .eq('role', 'clinic')
-        .single();
+      // Fazer login usando Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (userError || !user) {
-        console.error('❌ Erro no login do usuário:', userError);
+      if (authError || !authData.user) {
+        console.error('❌ Erro no login:', authError);
         toast({
           title: "Erro no login",
           description: "Email ou senha incorretos.",
@@ -43,13 +40,13 @@ const ClinicLogin = () => {
         return;
       }
 
-      console.log('✅ Usuário encontrado:', user);
+      console.log('✅ Login realizado com sucesso:', authData.user.email);
 
       // Buscar clínica associada ao usuário
       const { data: clinic, error: clinicError } = await supabase
         .from('clinics')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', authData.user.id)
         .single();
 
       if (clinicError || !clinic) {
