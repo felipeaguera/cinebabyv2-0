@@ -103,8 +103,8 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
     return (
       <div className="text-center py-12 text-gray-500">
         <Building2 className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-        <p className="text-xl mb-2">Nenhuma clínica cadastrada ainda</p>
-        <p>Comece cadastrando sua primeira clínica</p>
+        <p className="text-xl mb-2">Nenhuma clínica encontrada</p>
+        <p>Tente buscar por um termo diferente ou cadastre uma nova clínica</p>
       </div>
     );
   }

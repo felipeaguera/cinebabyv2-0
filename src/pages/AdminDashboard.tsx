@@ -10,6 +10,7 @@ import VideoManagement from "@/components/VideoManagement";
 import AdminHeader from "@/components/admin/AdminHeader";
 import AddClinicDialog from "@/components/admin/AddClinicDialog";
 import ClinicTable from "@/components/admin/ClinicTable";
+import { ClinicSearch } from "@/components/admin/ClinicSearch";
 
 interface Clinic {
   id: string;
@@ -23,7 +24,9 @@ interface Clinic {
 }
 
 const AdminDashboard = () => {
-  const [clinics, setClinics] = useState<Clinic[]>([]);
+  const [allClinics, setAllClinics] = useState<Clinic[]>([]);
+  const [filteredClinics, setFilteredClinics] = useState<Clinic[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
   const { user, loading, isAdmin, signOut } = useAuth();
 
@@ -43,6 +46,20 @@ const AdminDashboard = () => {
     }
   }, [user, loading, isAdmin, navigate]);
 
+  useEffect(() => {
+    // Filtrar clínicas baseado no termo de busca
+    if (searchTerm.trim() === "") {
+      setFilteredClinics(allClinics);
+    } else {
+      const filtered = allClinics.filter(clinic =>
+        clinic.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        clinic.city.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        clinic.email.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredClinics(filtered);
+    }
+  }, [searchTerm, allClinics]);
+
   const loadClinics = async () => {
     try {
       const { data, error } = await supabase
@@ -54,7 +71,7 @@ const AdminDashboard = () => {
         return;
       }
 
-      setClinics(data || []);
+      setAllClinics(data || []);
     } catch (err) {
       console.error('Erro ao carregar clínicas:', err);
     }
@@ -105,6 +122,9 @@ const AdminDashboard = () => {
               </div>
             </div>
 
+            {/* Busca de Clínicas */}
+            <ClinicSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+
             <Card className="cinebaby-card">
               <CardHeader>
                 <CardTitle className="flex items-center text-purple-800">
@@ -112,11 +132,15 @@ const AdminDashboard = () => {
                   Lista de Clínicas
                 </CardTitle>
                 <CardDescription className="text-lg">
-                  {clinics.length} clínica{clinics.length !== 1 ? 's' : ''} cadastrada{clinics.length !== 1 ? 's' : ''}
+                  {searchTerm ? (
+                    <>Encontradas {filteredClinics.length} clínica{filteredClinics.length !== 1 ? 's' : ''} para "{searchTerm}"</>
+                  ) : (
+                    <>{allClinics.length} clínica{allClinics.length !== 1 ? 's' : ''} cadastrada{allClinics.length !== 1 ? 's' : ''}</>
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ClinicTable clinics={clinics} onClinicDeleted={loadClinics} />
+                <ClinicTable clinics={filteredClinics} onClinicDeleted={loadClinics} />
               </CardContent>
             </Card>
           </TabsContent>
