@@ -41,76 +41,80 @@ const PatientVideos = () => {
   useEffect(() => {
     const findPatientById = () => {
       if (!qrCode) {
-        console.log('Nenhum ID de paciente fornecido na URL');
+        console.log('Nenhum QR Code fornecido na URL');
         setLoading(false);
         return;
       }
       
-      console.log('Procurando paciente com ID:', qrCode);
+      console.log('🔍 Procurando paciente com QR Code:', qrCode);
       
-      // Buscar em todas as clínicas
+      // Primeiro, verificar se há clínicas no localStorage
       const storedClinics = localStorage.getItem("cinebaby_clinics");
       if (!storedClinics) {
-        console.log('Nenhuma clínica encontrada no localStorage');
+        console.log('❌ Nenhuma clínica encontrada no localStorage');
         setLoading(false);
         return;
       }
 
       const clinics = JSON.parse(storedClinics);
-      console.log('Clínicas encontradas:', clinics);
+      console.log('🏥 Clínicas encontradas:', clinics.length);
       
-      let patientFound = false;
-      
+      // Buscar em todas as clínicas
       for (const clinic of clinics) {
+        console.log(`🔍 Verificando clínica: ${clinic.name} (ID: ${clinic.id})`);
+        
         const storedPatients = localStorage.getItem(`cinebaby_patients_${clinic.id}`);
         if (storedPatients) {
           const patients = JSON.parse(storedPatients);
-          console.log(`Pacientes da clínica ${clinic.id}:`, patients);
+          console.log(`👥 Pacientes encontrados na clínica ${clinic.name}:`, patients.length);
           
-          // Buscar pelo ID da paciente - converter ambos para string para comparação
-          const foundPatient = patients.find((patient: Patient) => 
-            patient.id.toString() === qrCode.toString()
-          );
+          // Buscar paciente pelo ID (convertendo ambos para string)
+          const foundPatient = patients.find((patient: Patient) => {
+            const patientIdStr = patient.id.toString();
+            const qrCodeStr = qrCode.toString();
+            console.log(`🔄 Comparando: paciente ID "${patientIdStr}" com QR Code "${qrCodeStr}"`);
+            return patientIdStr === qrCodeStr;
+          });
           
           if (foundPatient) {
-            console.log('Paciente encontrada:', foundPatient);
+            console.log('✅ Paciente encontrada:', foundPatient.name);
             setPatient(foundPatient);
             setClinic(clinic);
-            patientFound = true;
             
             // Carregar vídeos da paciente
             const storedVideos = localStorage.getItem(`cinebaby_videos_${foundPatient.id}`);
-            console.log('Vídeos armazenados para paciente:', storedVideos);
+            console.log(`🎥 Verificando vídeos para paciente ${foundPatient.id}:`, storedVideos ? 'encontrados' : 'não encontrados');
             
             if (storedVideos) {
               const parsedVideos = JSON.parse(storedVideos);
-              console.log('Vídeos parseados:', parsedVideos);
+              console.log('📹 Vídeos carregados:', parsedVideos.length);
               setVideos(parsedVideos);
             } else {
-              console.log('Nenhum vídeo encontrado para esta paciente');
+              console.log('📹 Nenhum vídeo encontrado para esta paciente');
               setVideos([]);
             }
             
             setLoading(false);
             return;
-          } else {
-            console.log(`Nenhum paciente encontrado para clínica ${clinic.id}`);
           }
+        } else {
+          console.log(`📂 Nenhum dado de paciente encontrado para clínica ${clinic.name}`);
         }
       }
       
-      if (!patientFound) {
-        console.log('Paciente não encontrada com ID:', qrCode);
-        console.log('Verificando localStorage completo...');
-        
-        // Debug: mostrar tudo que está no localStorage
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key?.startsWith('cinebaby_')) {
-            console.log(`${key}:`, localStorage.getItem(key));
-          }
+      // Se chegou até aqui, não encontrou a paciente
+      console.log('❌ Paciente não encontrada com QR Code:', qrCode);
+      console.log('🔧 Debug: Mostrando todos os dados do localStorage...');
+      
+      // Debug completo do localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith('cinebaby_')) {
+          const data = localStorage.getItem(key);
+          console.log(`📋 ${key}:`, data);
         }
       }
+      
       setLoading(false);
     };
 

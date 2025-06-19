@@ -152,9 +152,13 @@ const PatientProfile = () => {
       return;
     }
 
-    // Gerar QR Code com o ID da paciente
-    const qrCodeData = `${window.location.origin}/patient/${patient.id}`;
+    // Gerar QR Code com o ID da paciente - usar sempre string
+    const patientQRId = patient.id.toString();
+    const qrCodeData = `${window.location.origin}/patient/${patientQRId}`;
     let qrCodeDataURL = '';
+    
+    console.log('Gerando QR Code para paciente ID:', patientQRId);
+    console.log('URL do QR Code:', qrCodeData);
     
     try {
       qrCodeDataURL = await QRCodeLib.toDataURL(qrCodeData, {
