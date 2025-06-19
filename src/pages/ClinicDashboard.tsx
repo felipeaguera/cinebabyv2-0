@@ -9,7 +9,7 @@ import { LogOut, Plus, Search, Users, Eye, Edit, Trash2 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import EditPatientDialog from "@/components/EditPatientDialog";
-import Badge from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 
 interface Patient {
   id: number;
