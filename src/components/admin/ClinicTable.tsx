@@ -30,6 +30,8 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deletingClinicId, setDeletingClinicId] = useState<string | null>(null);
 
+  console.log('ClinicTable renderizou com', clinics.length, 'clínicas:', clinics);
+
   const handleDeleteClinic = async (clinicId: string, clinicName: string) => {
     if (!window.confirm(`Tem certeza que deseja excluir a clínica "${clinicName}"? Esta ação não pode ser desfeita e também excluirá todos os pacientes e vídeos associados.`)) {
       return;
@@ -40,15 +42,6 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
     try {
       console.log('Iniciando exclusão da clínica:', clinicId);
 
-      // Primeiro, vamos contar quantos pacientes e vídeos serão excluídos
-      const { data: patientsCount } = await supabase
-        .from('patients')
-        .select('id', { count: 'exact' })
-        .eq('clinic_id', clinicId);
-
-      console.log(`Clínica possui ${patientsCount?.length || 0} pacientes que serão excluídos`);
-
-      // Excluir a clínica (os pacientes e vídeos serão excluídos automaticamente por CASCADE)
       const { error } = await supabase
         .from('clinics')
         .delete()
@@ -66,12 +59,11 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
 
       console.log('Clínica excluída com sucesso');
       
-      // Recarregar a lista de clínicas
       onClinicDeleted();
       
       toast({
         title: "Clínica excluída",
-        description: `A clínica "${clinicName}" foi removida com sucesso${patientsCount?.length ? ` junto com ${patientsCount.length} paciente(s)` : ''}.`,
+        description: `A clínica "${clinicName}" foi removida com sucesso.`,
       });
     } catch (err) {
       console.error('Erro inesperado ao excluir clínica:', err);

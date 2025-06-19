@@ -81,7 +81,7 @@ const AdminDashboard = () => {
         return;
       }
 
-      console.log('Clínicas carregadas:', data?.length || 0);
+      console.log('Clínicas carregadas:', data?.length || 0, data);
       setAllClinics(data || []);
     } catch (err) {
       console.error('Erro ao carregar clínicas:', err);
@@ -93,6 +93,16 @@ const AdminDashboard = () => {
   const handleLogout = async () => {
     await signOut();
     navigate("/");
+  };
+
+  const handleClinicAdded = () => {
+    console.log('Clínica adicionada, recarregando lista...');
+    loadClinics();
+  };
+
+  const handleClinicDeleted = () => {
+    console.log('Clínica deletada, recarregando lista...');
+    loadClinics();
   };
 
   if (loading || isLoading) {
@@ -131,7 +141,7 @@ const AdminDashboard = () => {
                   <h2 className="text-3xl font-bold text-white mb-2 drop-shadow-lg">Clínicas Cadastradas</h2>
                   <p className="text-white/80 text-lg">Gerencie as clínicas da plataforma</p>
                 </div>
-                <AddClinicDialog onClinicAdded={loadClinics} />
+                <AddClinicDialog onClinicAdded={handleClinicAdded} />
               </div>
             </div>
 
@@ -153,7 +163,7 @@ const AdminDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <ClinicTable clinics={filteredClinics} onClinicDeleted={loadClinics} />
+                <ClinicTable clinics={filteredClinics} onClinicDeleted={handleClinicDeleted} />
               </CardContent>
             </Card>
           </TabsContent>
