@@ -27,21 +27,27 @@ const AdminDashboard = () => {
   const [allClinics, setAllClinics] = useState<Clinic[]>([]);
   const [filteredClinics, setFilteredClinics] = useState<Clinic[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const { user, loading, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
+    console.log('AdminDashboard - Auth state:', { user, loading, isAdmin });
+    
     if (!loading && !user) {
+      console.log('No user, redirecting to login');
       navigate("/admin/login");
       return;
     }
 
     if (!loading && user && !isAdmin) {
+      console.log('User is not admin, redirecting to home');
       navigate("/");
       return;
     }
 
     if (user && isAdmin) {
+      console.log('User is admin, loading clinics');
       loadClinics();
     }
   }, [user, loading, isAdmin, navigate]);
@@ -62,18 +68,25 @@ const AdminDashboard = () => {
 
   const loadClinics = async () => {
     try {
+      setIsLoading(true);
+      console.log('Loading clinics...');
+      
       const { data, error } = await supabase
         .from('clinics')
-        .select('*');
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Erro ao carregar clínicas:', error);
         return;
       }
 
+      console.log('Clinics loaded:', data);
       setAllClinics(data || []);
     } catch (err) {
       console.error('Erro ao carregar clínicas:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -82,7 +95,7 @@ const AdminDashboard = () => {
     navigate("/");
   };
 
-  if (loading) {
+  if (loading || isLoading) {
     return (
       <div className="min-h-screen cinebaby-gradient flex items-center justify-center">
         <div className="text-white text-xl">Carregando...</div>

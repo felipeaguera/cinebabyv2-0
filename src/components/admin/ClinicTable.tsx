@@ -38,6 +38,7 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
           .eq('id', clinicId);
 
         if (error) {
+          console.error('Erro ao excluir clínica:', error);
           toast({
             title: "Erro",
             description: "Erro ao excluir clínica: " + error.message,
@@ -53,6 +54,11 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
         });
       } catch (err) {
         console.error('Erro ao excluir clínica:', err);
+        toast({
+          title: "Erro",
+          description: "Erro inesperado ao excluir clínica.",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -62,7 +68,7 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
     setIsEditDialogOpen(true);
   };
 
-  const handleSaveClinic = async (updatedClinic: Clinic) => {
+  const handleSaveClinic = async (updatedClinic: any) => {
     try {
       const { error } = await supabase
         .from('clinics')
@@ -71,11 +77,12 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
           address: updatedClinic.address,
           city: updatedClinic.city,
           email: updatedClinic.email,
-          phone: updatedClinic.phone
+          phone: updatedClinic.phone || null
         })
         .eq('id', updatedClinic.id);
 
       if (error) {
+        console.error('Erro ao atualizar clínica:', error);
         toast({
           title: "Erro",
           description: "Erro ao atualizar clínica: " + error.message,
@@ -167,7 +174,7 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
             address: editingClinic.address,
             city: editingClinic.city,
             email: editingClinic.email,
-            password: "", // Não mostrar senha atual por segurança
+            password: "",
             createdAt: editingClinic.created_at
           }}
           isOpen={isEditDialogOpen}
@@ -177,7 +184,7 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
           }}
           onSave={(updatedClinic) => {
             handleSaveClinic({
-              ...editingClinic,
+              id: editingClinic.id,
               name: updatedClinic.name,
               address: updatedClinic.address,
               city: updatedClinic.city,
