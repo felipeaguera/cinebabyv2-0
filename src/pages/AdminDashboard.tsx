@@ -69,7 +69,7 @@ const AdminDashboard = () => {
   const loadClinics = async () => {
     try {
       setIsLoading(true);
-      console.log('Loading clinics...');
+      console.log('Carregando clínicas...');
       
       const { data, error } = await supabase
         .from('clinics')
@@ -81,7 +81,7 @@ const AdminDashboard = () => {
         return;
       }
 
-      console.log('Clinics loaded:', data);
+      console.log('Clínicas carregadas:', data?.length || 0);
       setAllClinics(data || []);
     } catch (err) {
       console.error('Erro ao carregar clínicas:', err);

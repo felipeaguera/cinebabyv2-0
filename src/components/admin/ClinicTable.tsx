@@ -28,38 +28,60 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
   const { toast } = useToast();
   const [editingClinic, setEditingClinic] = useState<Clinic | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [deletingClinicId, setDeletingClinicId] = useState<string | null>(null);
 
-  const handleDeleteClinic = async (clinicId: string) => {
-    if (window.confirm("Tem certeza que deseja excluir esta clínica? Esta ação não pode ser desfeita.")) {
-      try {
-        const { error } = await supabase
-          .from('clinics')
-          .delete()
-          .eq('id', clinicId);
+  const handleDeleteClinic = async (clinicId: string, clinicName: string) => {
+    if (!window.confirm(`Tem certeza que deseja excluir a clínica "${clinicName}"? Esta ação não pode ser desfeita e também excluirá todos os pacientes e vídeos associados.`)) {
+      return;
+    }
 
-        if (error) {
-          console.error('Erro ao excluir clínica:', error);
-          toast({
-            title: "Erro",
-            description: "Erro ao excluir clínica: " + error.message,
-            variant: "destructive",
-          });
-          return;
-        }
+    setDeletingClinicId(clinicId);
+    
+    try {
+      console.log('Iniciando exclusão da clínica:', clinicId);
 
-        onClinicDeleted();
-        toast({
-          title: "Clínica excluída",
-          description: "A clínica foi removida com sucesso.",
-        });
-      } catch (err) {
-        console.error('Erro ao excluir clínica:', err);
+      // Primeiro, vamos contar quantos pacientes e vídeos serão excluídos
+      const { data: patientsCount } = await supabase
+        .from('patients')
+        .select('id', { count: 'exact' })
+        .eq('clinic_id', clinicId);
+
+      console.log(`Clínica possui ${patientsCount?.length || 0} pacientes que serão excluídos`);
+
+      // Excluir a clínica (os pacientes e vídeos serão excluídos automaticamente por CASCADE)
+      const { error } = await supabase
+        .from('clinics')
+        .delete()
+        .eq('id', clinicId);
+
+      if (error) {
+        console.error('Erro ao excluir clínica:', error);
         toast({
           title: "Erro",
-          description: "Erro inesperado ao excluir clínica.",
+          description: `Erro ao excluir clínica: ${error.message}`,
           variant: "destructive",
         });
+        return;
       }
+
+      console.log('Clínica excluída com sucesso');
+      
+      // Recarregar a lista de clínicas
+      onClinicDeleted();
+      
+      toast({
+        title: "Clínica excluída",
+        description: `A clínica "${clinicName}" foi removida com sucesso${patientsCount?.length ? ` junto com ${patientsCount.length} paciente(s)` : ''}.`,
+      });
+    } catch (err) {
+      console.error('Erro inesperado ao excluir clínica:', err);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao excluir clínica. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingClinicId(null);
     }
   };
 
@@ -111,7 +133,7 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
       <div className="text-center py-12 text-gray-500">
         <Building2 className="h-16 w-16 mx-auto mb-4 text-gray-300" />
         <p className="text-xl mb-2">Nenhuma clínica encontrada</p>
-        <p>Tente buscar por um termo diferente ou cadastre uma nova clínica</p>
+        <p>Cadastre uma nova clínica para começar</p>
       </div>
     );
   }
@@ -147,16 +169,22 @@ const ClinicTable = ({ clinics, onClinicDeleted }: ClinicTableProps) => {
                       size="sm"
                       onClick={() => handleEditClinic(clinic)}
                       className="hover:bg-blue-50 hover:border-blue-300 text-blue-600"
+                      disabled={deletingClinicId === clinic.id}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDeleteClinic(clinic.id)}
+                      onClick={() => handleDeleteClinic(clinic.id, clinic.name)}
                       className="hover:bg-red-50 hover:border-red-300 text-red-600"
+                      disabled={deletingClinicId === clinic.id}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {deletingClinicId === clinic.id ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-600 border-t-transparent" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </TableCell>
