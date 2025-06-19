@@ -40,32 +40,44 @@ const PatientVideos = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Buscar paciente pelo ID (não mais por QR Code)
     const findPatientById = () => {
       if (!qrCode) return;
       
+      console.log('Procurando paciente com ID:', qrCode);
+      
       // Buscar em todas as clínicas
       const storedClinics = localStorage.getItem("cinebaby_clinics");
-      if (!storedClinics) return;
+      if (!storedClinics) {
+        console.log('Nenhuma clínica encontrada no localStorage');
+        setLoading(false);
+        return;
+      }
 
       const clinics = JSON.parse(storedClinics);
+      console.log('Clínicas encontradas:', clinics);
       
       for (const clinic of clinics) {
         const storedPatients = localStorage.getItem(`cinebaby_patients_${clinic.id}`);
         if (storedPatients) {
           const patients = JSON.parse(storedPatients);
+          console.log(`Pacientes da clínica ${clinic.id}:`, patients);
           
-          // Buscar pelo ID da paciente (que vem no parâmetro qrCode)
+          // Buscar pelo ID da paciente
           const foundPatient = patients.find((patient: Patient) => patient.id.toString() === qrCode);
           
           if (foundPatient) {
+            console.log('Paciente encontrada:', foundPatient);
             setPatient(foundPatient);
             setClinic(clinic);
             
             // Carregar vídeos da paciente
             const storedVideos = localStorage.getItem(`cinebaby_videos_${foundPatient.id}`);
+            console.log('Vídeos armazenados:', storedVideos);
+            
             if (storedVideos) {
-              setVideos(JSON.parse(storedVideos));
+              const parsedVideos = JSON.parse(storedVideos);
+              console.log('Vídeos parseados:', parsedVideos);
+              setVideos(parsedVideos);
             }
             
             setLoading(false);
@@ -74,6 +86,7 @@ const PatientVideos = () => {
         }
       }
       
+      console.log('Paciente não encontrada');
       setLoading(false);
     };
 
@@ -179,6 +192,9 @@ const PatientVideos = () => {
                           src={video.fileUrl}
                           controls
                           className="w-full h-full object-cover"
+                          onError={(e) => {
+                            console.error('Erro ao carregar vídeo:', e);
+                          }}
                         >
                           Seu navegador não suporta a reprodução de vídeo.
                         </video>
