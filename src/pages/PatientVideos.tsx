@@ -41,7 +41,11 @@ const PatientVideos = () => {
 
   useEffect(() => {
     const findPatientById = () => {
-      if (!qrCode) return;
+      if (!qrCode) {
+        console.log('Nenhum ID de paciente fornecido na URL');
+        setLoading(false);
+        return;
+      }
       
       console.log('Procurando paciente com ID:', qrCode);
       
@@ -56,6 +60,8 @@ const PatientVideos = () => {
       const clinics = JSON.parse(storedClinics);
       console.log('Clínicas encontradas:', clinics);
       
+      let patientFound = false;
+      
       for (const clinic of clinics) {
         const storedPatients = localStorage.getItem(`cinebaby_patients_${clinic.id}`);
         if (storedPatients) {
@@ -69,6 +75,7 @@ const PatientVideos = () => {
             console.log('Paciente encontrada:', foundPatient);
             setPatient(foundPatient);
             setClinic(clinic);
+            patientFound = true;
             
             // Carregar vídeos da paciente
             const storedVideos = localStorage.getItem(`cinebaby_videos_${foundPatient.id}`);
@@ -78,6 +85,9 @@ const PatientVideos = () => {
               const parsedVideos = JSON.parse(storedVideos);
               console.log('Vídeos parseados:', parsedVideos);
               setVideos(parsedVideos);
+            } else {
+              console.log('Nenhum vídeo encontrado para esta paciente');
+              setVideos([]);
             }
             
             setLoading(false);
@@ -86,7 +96,9 @@ const PatientVideos = () => {
         }
       }
       
-      console.log('Paciente não encontrada');
+      if (!patientFound) {
+        console.log('Paciente não encontrada com ID:', qrCode);
+      }
       setLoading(false);
     };
 

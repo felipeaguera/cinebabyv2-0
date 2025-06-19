@@ -110,7 +110,7 @@ const PatientProfile = () => {
       fileName: uploadFile.name,
       uploadDate: new Date().toISOString(),
       fileSize: (uploadFile.size / (1024 * 1024)).toFixed(2) + ' MB',
-      qrCode: `${patient.id}-${Date.now()}`,
+      qrCode: patient.id.toString(), // Usar o ID da paciente como QR Code
       fileUrl: URL.createObjectURL(uploadFile)
     };
 
@@ -135,14 +135,24 @@ const PatientProfile = () => {
 
     toast({
       title: "Vídeo enviado!",
-      description: "O vídeo foi adicionado com sucesso ao perfil da paciente.",
+      description: "O vídeo foi adicionado com sucesso. Agora você pode imprimir o QR Code para a paciente acessar os vídeos.",
     });
   };
 
   const handlePrintQRCode = async () => {
     if (!patient || !clinic) return;
 
-    // Gerar QR Code real com o ID da paciente
+    // Verificar se existe pelo menos um vídeo antes de permitir imprimir
+    if (videos.length === 0) {
+      toast({
+        title: "Atenção",
+        description: "Adicione pelo menos um vídeo antes de imprimir o QR Code.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Gerar QR Code com o ID da paciente
     const qrCodeData = `${window.location.origin}/patient/${patient.id}`;
     let qrCodeDataURL = '';
     
@@ -155,6 +165,8 @@ const PatientProfile = () => {
           light: '#FFFFFF'
         }
       });
+      
+      console.log('QR Code gerado para URL:', qrCodeData);
     } catch (error) {
       console.error('Erro ao gerar QR Code:', error);
     }
