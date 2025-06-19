@@ -1,30 +1,34 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Play, Calendar, Heart } from "lucide-react";
 import { useParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Patient {
-  id: number;
+  id: string;
   name: string;
   phone: string;
-  clinicId: number;
-  createdAt: string;
-  videosCount: number;
+  clinic_id: string;
+  created_at: string;
+  mother_name: string;
+  birth_date: string;
+  gestational_age: string;
+  qr_code: string;
 }
 
 interface Video {
-  id: number;
-  patientId: number;
-  fileName: string;
-  uploadDate: string;
-  fileSize: string;
-  qrCode: string;
-  fileUrl?: string;
+  id: string;
+  patient_id: string;
+  file_name: string;
+  upload_date: string;
+  file_size: number;
+  file_url?: string;
 }
 
 interface Clinic {
-  id: number;
+  id: string;
   name: string;
   address: string;
   city: string;
@@ -37,147 +41,82 @@ const PatientVideos = () => {
   const [clinic, setClinic] = useState<Clinic | null>(null);
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const findPatientByQRCode = () => {
+    const loadPatientData = async () => {
       if (!qrCode) {
-        console.log('❌ Nenhum QR Code fornecido na URL');
+        console.log('❌ Nenhum ID de paciente fornecido na URL');
+        setError('ID da paciente não encontrado na URL');
         setLoading(false);
         return;
       }
       
-      console.log('🔍 Iniciando busca por QR Code:', qrCode);
+      console.log('🔍 Buscando dados da paciente com ID:', qrCode);
       
-      // NOVA ESTRATÉGIA: Buscar primeiro no mapeamento de QR Codes
-      const qrMapping = localStorage.getItem('cinebaby_qr_mapping');
-      if (qrMapping) {
-        const mappings = JSON.parse(qrMapping);
-        console.log('📋 Mapeamentos QR encontrados:', Object.keys(mappings).length);
-        
-        if (mappings[qrCode]) {
-          const mapping = mappings[qrCode];
-          console.log('✅ Mapeamento encontrado:', mapping);
-          
-          // Buscar dados completos da paciente
-          const storedPatients = localStorage.getItem(`cinebaby_patients_${mapping.clinicId}`);
-          if (storedPatients) {
-            const patients = JSON.parse(storedPatients);
-            const foundPatient = patients.find((p: Patient) => p.id === mapping.patientId);
-            
-            if (foundPatient) {
-              console.log('✅ Paciente encontrada via mapeamento:', foundPatient.name);
-              setPatient(foundPatient);
-              
-              // Buscar dados da clínica
-              const storedClinics = localStorage.getItem("cinebaby_clinics");
-              if (storedClinics) {
-                const clinics = JSON.parse(storedClinics);
-                const foundClinic = clinics.find((c: Clinic) => c.id === mapping.clinicId);
-                if (foundClinic) {
-                  setClinic(foundClinic);
-                }
-              }
-              
-              // Carregar vídeos da paciente
-              const storedVideos = localStorage.getItem(`cinebaby_videos_${foundPatient.id}`);
-              if (storedVideos) {
-                const parsedVideos = JSON.parse(storedVideos);
-                console.log('🎥 Vídeos encontrados:', parsedVideos.length);
-                setVideos(parsedVideos);
-              }
-              
-              setLoading(false);
-              return;
-            }
-          }
-        }
-      }
-      
-      console.log('⚠️ Mapeamento QR não encontrado, tentando busca antiga...');
-      
-      // FALLBACK: Busca tradicional (para compatibilidade com QR codes antigos)
-      const storedClinics = localStorage.getItem("cinebaby_clinics");
-      if (!storedClinics) {
-        console.log('❌ Nenhuma clínica encontrada no localStorage');
-        setLoading(false);
-        return;
-      }
+      try {
+        // Buscar dados da paciente usando o ID real
+        const { data: patientData, error: patientError } = await supabase
+          .from('patients')
+          .select('*')
+          .eq('id', qrCode)
+          .single();
 
-      const clinics = JSON.parse(storedClinics);
-      console.log('🏥 Clínicas encontradas:', clinics.length);
-      
-      // Buscar em todas as clínicas
-      for (const clinic of clinics) {
-        console.log(`🔍 Verificando clínica: ${clinic.name} (ID: ${clinic.id})`);
-        
-        const storedPatients = localStorage.getItem(`cinebaby_patients_${clinic.id}`);
-        if (storedPatients) {
-          const patients = JSON.parse(storedPatients);
-          console.log(`👥 Pacientes encontrados na clínica ${clinic.name}:`, patients.length);
-          
-          // Buscar paciente pelo ID (tentando ambas as possibilidades)
-          const foundPatient = patients.find((patient: Patient) => {
-            // Tentar buscar por ID direto
-            if (patient.id.toString() === qrCode) {
-              console.log(`✅ Paciente encontrada por ID: ${patient.name}`);
-              return true;
-            }
-            
-            // Buscar nos vídeos da paciente
-            const storedVideos = localStorage.getItem(`cinebaby_videos_${patient.id}`);
-            if (storedVideos) {
-              const videos = JSON.parse(storedVideos);
-              const hasMatchingVideo = videos.some((video: Video) => video.qrCode === qrCode);
-              if (hasMatchingVideo) {
-                console.log(`✅ Paciente encontrada por vídeo QR: ${patient.name}`);
-                return true;
-              }
-            }
-            
-            return false;
-          });
-          
-          if (foundPatient) {
-            console.log('✅ Paciente encontrada:', foundPatient.name);
-            setPatient(foundPatient);
-            setClinic(clinic);
-            
-            // Carregar vídeos da paciente
-            const storedVideos = localStorage.getItem(`cinebaby_videos_${foundPatient.id}`);
-            if (storedVideos) {
-              const parsedVideos = JSON.parse(storedVideos);
-              console.log('📹 Vídeos carregados:', parsedVideos.length);
-              setVideos(parsedVideos);
-            } else {
-              console.log('📹 Nenhum vídeo encontrado para esta paciente');
-              setVideos([]);
-            }
-            
-            setLoading(false);
-            return;
-          }
+        if (patientError) {
+          console.error('❌ Erro ao buscar paciente:', patientError);
+          setError('Paciente não encontrada');
+          setLoading(false);
+          return;
+        }
+
+        if (!patientData) {
+          console.log('❌ Paciente não encontrada com ID:', qrCode);
+          setError('Paciente não encontrada');
+          setLoading(false);
+          return;
+        }
+
+        console.log('✅ Paciente encontrada:', patientData.name);
+        setPatient(patientData);
+
+        // Buscar dados da clínica
+        const { data: clinicData, error: clinicError } = await supabase
+          .from('clinics')
+          .select('*')
+          .eq('id', patientData.clinic_id)
+          .single();
+
+        if (clinicError) {
+          console.error('⚠️ Erro ao buscar clínica:', clinicError);
+        } else if (clinicData) {
+          console.log('✅ Clínica encontrada:', clinicData.name);
+          setClinic(clinicData);
+        }
+
+        // Buscar vídeos da paciente
+        const { data: videosData, error: videosError } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('patient_id', qrCode)
+          .order('upload_date', { ascending: false });
+
+        if (videosError) {
+          console.error('⚠️ Erro ao buscar vídeos:', videosError);
+          setVideos([]);
         } else {
-          console.log(`📂 Nenhum dado de paciente encontrado para clínica ${clinic.name}`);
+          console.log('✅ Vídeos encontrados:', videosData?.length || 0);
+          setVideos(videosData || []);
         }
+
+      } catch (error) {
+        console.error('❌ Erro geral ao carregar dados:', error);
+        setError('Erro ao carregar dados da paciente');
+      } finally {
+        setLoading(false);
       }
-      
-      // Se chegou até aqui, não encontrou a paciente
-      console.log('❌ Paciente não encontrada com QR Code:', qrCode);
-      console.log('🔧 Debug completo do localStorage:');
-      
-      // Debug completo do localStorage
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key?.startsWith('cinebaby_')) {
-          const data = localStorage.getItem(key);
-          console.log(`📋 ${key}:`, JSON.parse(data || '{}'));
-        }
-      }
-      
-      setLoading(false);
     };
 
-    findPatientByQRCode();
+    loadPatientData();
   }, [qrCode]);
 
   if (loading) {
@@ -189,13 +128,14 @@ const PatientVideos = () => {
             alt="CineBaby Logo" 
             className="mx-auto h-16 w-auto mb-4"
           />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Carregando seus vídeos...</p>
         </div>
       </div>
     );
   }
 
-  if (!patient || !clinic) {
+  if (error || !patient) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
@@ -204,17 +144,13 @@ const PatientVideos = () => {
             alt="CineBaby Logo" 
             className="mx-auto h-16 w-auto mb-4"
           />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">QR Code Inválido</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Paciente Não Encontrada</h1>
           <p className="text-gray-600 mb-4">
-            O QR Code escaneado não foi encontrado em nosso sistema. 
-            Verifique se o código está correto ou entre em contato com sua clínica.
+            {error || 'Paciente ou vídeos não encontrados. Verifique com sua clínica.'}
           </p>
           <div className="mt-4 p-3 bg-gray-100 rounded text-sm">
-            <p className="font-medium">Código procurado:</p>
+            <p className="font-medium">ID procurado:</p>
             <p className="text-gray-500 break-all">{qrCode}</p>
-            <p className="text-xs text-gray-400 mt-2">
-              Abra o console do navegador (F12) para mais detalhes
-            </p>
           </div>
         </div>
       </div>
@@ -242,7 +178,9 @@ const PatientVideos = () => {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Olá, {patient.name}!</h2>
-          <p className="text-gray-600 mb-1">Seus vídeos de ultrassom da {clinic.name}</p>
+          {clinic && (
+            <p className="text-gray-600 mb-1">Seus vídeos de ultrassom da {clinic.name}</p>
+          )}
           <div className="flex items-center justify-center text-pink-600 text-sm">
             <Heart className="h-4 w-4 mr-1" />
             <span>Momentos únicos e inesquecíveis</span>
@@ -275,15 +213,15 @@ const PatientVideos = () => {
                         Ultrassom
                       </CardTitle>
                       <Badge variant="secondary" className="bg-pink-100 text-pink-800">
-                        {video.fileSize}
+                        {(video.file_size / (1024 * 1024)).toFixed(2)} MB
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    {video.fileUrl ? (
+                    {video.file_url ? (
                       <div className="aspect-video bg-gray-100 rounded-lg mb-4 overflow-hidden">
                         <video
-                          src={video.fileUrl}
+                          src={video.file_url}
                           controls
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -298,14 +236,14 @@ const PatientVideos = () => {
                         <div className="text-center text-gray-500">
                           <Play className="h-12 w-12 mx-auto mb-2" />
                           <p className="text-sm">Vídeo do seu bebê</p>
-                          <p className="text-xs">{video.fileName}</p>
+                          <p className="text-xs">{video.file_name}</p>
                         </div>
                       </div>
                     )}
                     <div className="flex items-center text-sm text-gray-600">
                       <Calendar className="h-4 w-4 mr-2" />
                       <span>
-                        Enviado em {new Date(video.uploadDate).toLocaleDateString('pt-BR', {
+                        Enviado em {new Date(video.upload_date).toLocaleDateString('pt-BR', {
                           day: '2-digit',
                           month: 'long',
                           year: 'numeric'
@@ -328,9 +266,11 @@ const PatientVideos = () => {
                   é um carinho que emociona para sempre. Cada movimento, cada imagem é um tesouro 
                   que ficará guardado no seu coração."
                 </p>
-                <div className="mt-6 text-sm text-gray-600">
-                  <p>Com carinho, equipe {clinic.name}</p>
-                </div>
+                {clinic && (
+                  <div className="mt-6 text-sm text-gray-600">
+                    <p>Com carinho, equipe {clinic.name}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

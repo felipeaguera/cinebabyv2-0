@@ -1,34 +1,39 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Upload, QrCode, Printer, Play, Calendar, Trash2, Eye } from "lucide-react";
+import { ArrowLeft, Upload, QrCode, Printer, Play, Calendar, Trash2, Eye, ExternalLink } from "lucide-react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import QRCodeLib from 'qrcode';
 
 interface Patient {
-  id: number;
+  id: string;
   name: string;
   phone: string;
-  clinicId: number;
-  createdAt: string;
-  videosCount: number;
+  clinic_id: string;
+  created_at: string;
+  mother_name: string;
+  birth_date: string;
+  gestational_age: string;
+  qr_code: string;
 }
 
 interface Video {
-  id: number;
-  patientId: number;
-  fileName: string;
-  uploadDate: string;
-  fileSize: string;
-  fileUrl?: string;
+  id: string;
+  patient_id: string;
+  file_name: string;
+  upload_date: string;
+  file_size: number;
+  file_url?: string;
 }
 
 interface Clinic {
-  id: number;
+  id: string;
   name: string;
   address: string;
   city: string;
@@ -58,24 +63,60 @@ const PatientProfile = () => {
     const parsedClinic = JSON.parse(clinicData);
     setClinic(parsedClinic);
 
-    // Carregar dados da paciente
-    const storedPatients = localStorage.getItem(`cinebaby_patients_${parsedClinic.id}`);
-    if (storedPatients) {
-      const patients = JSON.parse(storedPatients);
-      const foundPatient = patients.find((p: Patient) => p.id === parseInt(patientId || '0'));
-      if (foundPatient) {
-        setPatient(foundPatient);
-        
-        // Carregar vídeos da paciente
-        const storedVideos = localStorage.getItem(`cinebaby_videos_${foundPatient.id}`);
-        if (storedVideos) {
-          setVideos(JSON.parse(storedVideos));
-        }
-      } else {
-        navigate("/clinic/dashboard");
-      }
-    }
+    // Carregar dados da paciente do Supabase
+    loadPatientData();
   }, [navigate, patientId]);
+
+  const loadPatientData = async () => {
+    if (!patientId) return;
+
+    try {
+      // Buscar dados da paciente
+      const { data: patientData, error: patientError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', patientId)
+        .single();
+
+      if (patientError) {
+        console.error('Erro ao carregar paciente:', patientError);
+        navigate("/clinic/dashboard");
+        return;
+      }
+
+      setPatient(patientData);
+
+      // Buscar dados da clínica
+      const { data: clinicData, error: clinicError } = await supabase
+        .from('clinics')
+        .select('*')
+        .eq('id', patientData.clinic_id)
+        .single();
+
+      if (clinicError) {
+        console.error('Erro ao carregar clínica:', clinicError);
+      } else {
+        setClinic(clinicData);
+      }
+
+      // Buscar vídeos da paciente
+      const { data: videosData, error: videosError } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('upload_date', { ascending: false });
+
+      if (videosError) {
+        console.error('Erro ao carregar vídeos:', videosError);
+      } else {
+        setVideos(videosData || []);
+      }
+
+    } catch (error) {
+      console.error('Erro geral:', error);
+      navigate("/clinic/dashboard");
+    }
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -102,52 +143,59 @@ const PatientProfile = () => {
 
     setIsUploading(true);
 
-    const video: Video = {
-      id: Date.now(),
-      patientId: patient.id,
-      fileName: uploadFile.name,
-      uploadDate: new Date().toISOString(),
-      fileSize: (uploadFile.size / (1024 * 1024)).toFixed(2) + ' MB',
-      fileUrl: URL.createObjectURL(uploadFile)
-    };
+    try {
+      // Upload do vídeo para o Supabase Storage (se configurado) ou usar localStorage temporariamente
+      const videoData = {
+        patient_id: patient.id,
+        file_name: uploadFile.name,
+        file_size: uploadFile.size,
+        file_url: URL.createObjectURL(uploadFile) // Temporário até configurar storage
+      };
 
-    const updatedVideos = [...videos, video];
-    setVideos(updatedVideos);
-    localStorage.setItem(`cinebaby_videos_${patient.id}`, JSON.stringify(updatedVideos));
+      const { data, error } = await supabase
+        .from('videos')
+        .insert([videoData])
+        .select()
+        .single();
 
-    // NOVA ESTRATÉGIA: Salvar dados completos da paciente e clínica para acesso direto via QR
-    const patientData = {
-      patient: patient,
-      clinic: clinic,
-      videos: updatedVideos
-    };
-    
-    // Usar ID da paciente como QR Code (muito mais simples!)
-    const qrCode = `PATIENT_${patient.id}`;
-    localStorage.setItem(`cinebaby_qr_${qrCode}`, JSON.stringify(patientData));
-    
-    console.log('🎯 QR Code salvo:', qrCode);
-    console.log('📋 Dados salvos:', patientData);
+      if (error) {
+        console.error('Erro ao salvar vídeo:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao salvar o vídeo. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    // Atualizar contador de vídeos da paciente
-    const storedPatients = localStorage.getItem(`cinebaby_patients_${clinic.id}`);
-    if (storedPatients) {
-      const patients = JSON.parse(storedPatients);
-      const updatedPatients = patients.map((p: Patient) =>
-        p.id === patient.id ? { ...p, videosCount: updatedVideos.length } : p
-      );
-      localStorage.setItem(`cinebaby_patients_${clinic.id}`, JSON.stringify(updatedPatients));
-      setPatient({ ...patient, videosCount: updatedVideos.length });
+      // Recarregar a lista de vídeos
+      await loadPatientData();
+
+      setUploadFile(null);
+      setPreviewUrl(null);
+      setIsUploading(false);
+
+      toast({
+        title: "Vídeo enviado!",
+        description: "O vídeo foi adicionado com sucesso. Agora você pode imprimir o QR Code para a paciente acessar os vídeos.",
+      });
+
+    } catch (error) {
+      console.error('Erro no upload:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao fazer upload do vídeo.",
+        variant: "destructive",
+      });
+      setIsUploading(false);
     }
+  };
 
-    setUploadFile(null);
-    setPreviewUrl(null);
-    setIsUploading(false);
-
-    toast({
-      title: "Vídeo enviado!",
-      description: "O vídeo foi adicionado com sucesso. Agora você pode imprimir o QR Code para a paciente acessar os vídeos.",
-    });
+  const handleViewAsPatient = () => {
+    if (!patient) return;
+    
+    const patientUrl = `${window.location.origin}/patient/${patient.id}`;
+    window.open(patientUrl, '_blank');
   };
 
   const handlePrintQRCode = async () => {
@@ -160,11 +208,10 @@ const PatientProfile = () => {
       return;
     }
 
-    // QR Code simples baseado no ID da paciente
-    const qrCode = `PATIENT_${patient.id}`;
-    const qrCodeData = `${window.location.origin}/patient/${qrCode}`;
+    // Gerar QR Code com o ID real da paciente
+    const qrCodeData = `${window.location.origin}/patient/${patient.id}`;
     
-    console.log('🖨️ Imprimindo QR Code:', qrCode);
+    console.log('🖨️ Imprimindo QR Code para paciente:', patient.id);
     console.log('🔗 URL do QR Code:', qrCodeData);
     
     let qrCodeDataURL = '';
@@ -339,7 +386,7 @@ const PatientProfile = () => {
                   `<div class="qr-fallback">
                     <div style="font-weight: 600; margin-bottom: 10px;">QR Code</div>
                     <div style="font-size: 12px; color: #9ca3af;">Erro ao gerar QR Code</div>
-                    <div style="font-size: 10px; color: #d1d5db; margin-top: 8px;">${qrCode}</div>
+                    <div style="font-size: 10px; color: #d1d5db; margin-top: 8px;">${patient.id}</div>
                   </div>`
                 }
               </div>
@@ -355,7 +402,7 @@ const PatientProfile = () => {
             <div class="clinic-info">
               <strong>CineBaby</strong> - Momentos que emocionam para sempre<br/>
               Em parceria com ${clinic.name}<br/>
-              <small style="font-size: 12px; color: #9ca3af;">Código: ${qrCode}</small>
+              <small style="font-size: 12px; color: #9ca3af;">ID: ${patient.id}</small>
             </div>
             
             <button class="print-button no-print" onclick="window.print()">
@@ -369,44 +416,52 @@ const PatientProfile = () => {
     }
   };
 
-  const handleDeleteVideo = (videoId: number) => {
+  const handleDeleteVideo = async (videoId: string) => {
     if (window.confirm("Tem certeza que deseja excluir este vídeo?")) {
-      const updatedVideos = videos.filter(video => video.id !== videoId);
-      setVideos(updatedVideos);
-      localStorage.setItem(`cinebaby_videos_${patient?.id}`, JSON.stringify(updatedVideos));
+      try {
+        const { error } = await supabase
+          .from('videos')
+          .delete()
+          .eq('id', videoId);
 
-      if (clinic && patient) {
-        const storedPatients = localStorage.getItem(`cinebaby_patients_${clinic.id}`);
-        if (storedPatients) {
-          const patients = JSON.parse(storedPatients);
-          const updatedPatients = patients.map((p: Patient) =>
-            p.id === patient.id ? { ...p, videosCount: updatedVideos.length } : p
-          );
-          localStorage.setItem(`cinebaby_patients_${clinic.id}`, JSON.stringify(updatedPatients));
-          setPatient({ ...patient, videosCount: updatedVideos.length });
+        if (error) {
+          console.error('Erro ao excluir vídeo:', error);
+          toast({
+            title: "Erro",
+            description: "Erro ao excluir o vídeo.",
+            variant: "destructive",
+          });
+          return;
         }
 
-        // Atualizar também os dados do QR Code
-        if (updatedVideos.length > 0) {
-          const patientData = {
-            patient: patient,
-            clinic: clinic,
-            videos: updatedVideos
-          };
-          const qrCode = `PATIENT_${patient.id}`;
-          localStorage.setItem(`cinebaby_qr_${qrCode}`, JSON.stringify(patientData));
-        }
+        // Recarregar a lista de vídeos
+        await loadPatientData();
+
+        toast({
+          title: "Vídeo excluído!",
+          description: "O vídeo foi removido com sucesso.",
+        });
+
+      } catch (error) {
+        console.error('Erro ao excluir vídeo:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir o vídeo.",
+          variant: "destructive",
+        });
       }
-
-      toast({
-        title: "Vídeo excluído!",
-        description: "O vídeo foi removido com sucesso.",
-      });
     }
   };
 
   if (!patient || !clinic) {
-    return <div>Carregando...</div>;
+    return (
+      <div className="min-h-screen cinebaby-gradient flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Carregando dados da paciente...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -447,12 +502,16 @@ const PatientProfile = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div>
-                  <Label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Telefone</Label>
-                  <p className="text-lg font-medium mt-1">{patient.phone}</p>
+                  <Label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Nome da Mãe</Label>
+                  <p className="text-lg font-medium mt-1">{patient.mother_name}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Data de Cadastro</Label>
-                  <p className="text-lg font-medium mt-1">{new Date(patient.createdAt).toLocaleDateString('pt-BR')}</p>
+                  <Label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Telefone</Label>
+                  <p className="text-lg font-medium mt-1">{patient.phone || 'Não informado'}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Idade Gestacional</Label>
+                  <p className="text-lg font-medium mt-1">{patient.gestational_age}</p>
                 </div>
                 <div>
                   <Label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total de Vídeos</Label>
@@ -460,7 +519,15 @@ const PatientProfile = () => {
                     {videos.length} vídeo{videos.length !== 1 ? 's' : ''}
                   </Badge>
                 </div>
-                <div className="pt-6">
+                <div className="pt-6 space-y-3">
+                  <Button 
+                    onClick={handleViewAsPatient} 
+                    className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-lg py-4 rounded-xl"
+                    disabled={videos.length === 0}
+                  >
+                    <ExternalLink className="h-5 w-5 mr-2" />
+                    {videos.length === 0 ? 'Adicione um vídeo primeiro' : 'Visualizar como Paciente'}
+                  </Button>
                   <Button 
                     onClick={handlePrintQRCode} 
                     className="w-full h-12 cinebaby-button-primary text-lg py-4 rounded-xl"
@@ -562,22 +629,22 @@ const PatientProfile = () => {
                               <Play className="h-7 w-7 text-white" />
                             </div>
                             <div>
-                              <p className="font-semibold text-lg">{video.fileName}</p>
+                              <p className="font-semibold text-lg">{video.file_name}</p>
                               <div className="flex items-center space-x-6 text-gray-600 mt-1">
                                 <span className="flex items-center">
                                   <Calendar className="h-4 w-4 mr-2" />
-                                  {new Date(video.uploadDate).toLocaleDateString('pt-BR')}
+                                  {new Date(video.upload_date).toLocaleDateString('pt-BR')}
                                 </span>
-                                <span className="font-medium">{video.fileSize}</span>
+                                <span className="font-medium">{(video.file_size / (1024 * 1024)).toFixed(2)} MB</span>
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center space-x-3">
                             <Badge variant="outline" className="border-teal-200 text-teal-700 px-3 py-1">
                               <QrCode className="h-4 w-4 mr-1" />
-                              QR: PATIENT_{patient.id}
+                              ID: {patient.id.slice(0, 8)}...
                             </Badge>
-                            {video.fileUrl && (
+                            {video.file_url && (
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -608,7 +675,7 @@ const PatientProfile = () => {
                 <div className="fixed inset-0 bg-black/75 flex items-center justify-center z-50 p-4">
                   <div className="bg-white rounded-2xl p-6 max-w-4xl w-full max-h-[90vh] overflow-auto">
                     <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-xl font-semibold">{selectedVideoForPreview.fileName}</h3>
+                      <h3 className="text-xl font-semibold">{selectedVideoForPreview.file_name}</h3>
                       <Button 
                         variant="outline" 
                         onClick={() => setSelectedVideoForPreview(null)}
@@ -618,7 +685,7 @@ const PatientProfile = () => {
                       </Button>
                     </div>
                     <video
-                      src={selectedVideoForPreview.fileUrl}
+                      src={selectedVideoForPreview.file_url}
                       controls
                       className="w-full rounded-lg shadow-lg"
                       style={{ maxHeight: '70vh' }}
