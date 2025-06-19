@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,8 +67,10 @@ const PatientVideos = () => {
           const patients = JSON.parse(storedPatients);
           console.log(`Pacientes da clínica ${clinic.id}:`, patients);
           
-          // Buscar pelo ID da paciente
-          const foundPatient = patients.find((patient: Patient) => patient.id.toString() === qrCode);
+          // Buscar pelo ID da paciente - converter ambos para string para comparação
+          const foundPatient = patients.find((patient: Patient) => 
+            patient.id.toString() === qrCode.toString()
+          );
           
           if (foundPatient) {
             console.log('Paciente encontrada:', foundPatient);
@@ -79,7 +80,7 @@ const PatientVideos = () => {
             
             // Carregar vídeos da paciente
             const storedVideos = localStorage.getItem(`cinebaby_videos_${foundPatient.id}`);
-            console.log('Vídeos armazenados:', storedVideos);
+            console.log('Vídeos armazenados para paciente:', storedVideos);
             
             if (storedVideos) {
               const parsedVideos = JSON.parse(storedVideos);
@@ -92,12 +93,23 @@ const PatientVideos = () => {
             
             setLoading(false);
             return;
+          } else {
+            console.log(`Nenhum paciente encontrado para clínica ${clinic.id}`);
           }
         }
       }
       
       if (!patientFound) {
         console.log('Paciente não encontrada com ID:', qrCode);
+        console.log('Verificando localStorage completo...');
+        
+        // Debug: mostrar tudo que está no localStorage
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith('cinebaby_')) {
+            console.log(`${key}:`, localStorage.getItem(key));
+          }
+        }
       }
       setLoading(false);
     };
@@ -134,6 +146,10 @@ const PatientVideos = () => {
             O QR Code escaneado não foi encontrado em nosso sistema. 
             Verifique se o código está correto ou entre em contato com sua clínica.
           </p>
+          <div className="mt-4 p-3 bg-gray-100 rounded text-sm text-gray-500">
+            <p>ID procurado: {qrCode}</p>
+            <p>Abra o console do navegador (F12) para mais detalhes de debug</p>
+          </div>
         </div>
       </div>
     );
