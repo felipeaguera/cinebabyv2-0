@@ -24,7 +24,6 @@ interface Video {
   fileName: string;
   uploadDate: string;
   fileSize: string;
-  qrCode: string;
   fileUrl?: string;
 }
 
@@ -103,18 +102,12 @@ const PatientProfile = () => {
 
     setIsUploading(true);
 
-    // Gerar QR Code único baseado no timestamp atual
-    const uniqueQRCode = `PATIENT_${patient.id}_${Date.now()}`;
-    
-    console.log('🎯 Gerando vídeo com QR Code único:', uniqueQRCode);
-
     const video: Video = {
       id: Date.now(),
       patientId: patient.id,
       fileName: uploadFile.name,
       uploadDate: new Date().toISOString(),
       fileSize: (uploadFile.size / (1024 * 1024)).toFixed(2) + ' MB',
-      qrCode: uniqueQRCode,
       fileUrl: URL.createObjectURL(uploadFile)
     };
 
@@ -122,18 +115,19 @@ const PatientProfile = () => {
     setVideos(updatedVideos);
     localStorage.setItem(`cinebaby_videos_${patient.id}`, JSON.stringify(updatedVideos));
 
-    // IMPORTANTE: Salvar também um mapeamento do QR Code para o paciente
-    const qrMapping = localStorage.getItem('cinebaby_qr_mapping') || '{}';
-    const mappings = JSON.parse(qrMapping);
-    mappings[uniqueQRCode] = {
-      patientId: patient.id,
-      clinicId: clinic.id,
-      patientName: patient.name,
-      clinicName: clinic.name
+    // NOVA ESTRATÉGIA: Salvar dados completos da paciente e clínica para acesso direto via QR
+    const patientData = {
+      patient: patient,
+      clinic: clinic,
+      videos: updatedVideos
     };
-    localStorage.setItem('cinebaby_qr_mapping', JSON.stringify(mappings));
     
-    console.log('💾 QR Code mapeamento salvo:', mappings[uniqueQRCode]);
+    // Usar ID da paciente como QR Code (muito mais simples!)
+    const qrCode = `PATIENT_${patient.id}`;
+    localStorage.setItem(`cinebaby_qr_${qrCode}`, JSON.stringify(patientData));
+    
+    console.log('🎯 QR Code salvo:', qrCode);
+    console.log('📋 Dados salvos:', patientData);
 
     // Atualizar contador de vídeos da paciente
     const storedPatients = localStorage.getItem(`cinebaby_patients_${clinic.id}`);
@@ -166,13 +160,13 @@ const PatientProfile = () => {
       return;
     }
 
-    // Usar o QR Code do primeiro vídeo (mais recente)
-    const latestVideo = videos[videos.length - 1];
-    const qrCodeForPatient = latestVideo.qrCode;
+    // QR Code simples baseado no ID da paciente
+    const qrCode = `PATIENT_${patient.id}`;
+    const qrCodeData = `${window.location.origin}/patient/${qrCode}`;
     
-    console.log('🖨️ Imprimindo QR Code:', qrCodeForPatient);
+    console.log('🖨️ Imprimindo QR Code:', qrCode);
+    console.log('🔗 URL do QR Code:', qrCodeData);
     
-    const qrCodeData = `${window.location.origin}/patient/${qrCodeForPatient}`;
     let qrCodeDataURL = '';
     
     try {
@@ -185,7 +179,7 @@ const PatientProfile = () => {
         }
       });
       
-      console.log('✅ QR Code gerado para URL:', qrCodeData);
+      console.log('✅ QR Code gerado com sucesso');
     } catch (error) {
       console.error('❌ Erro ao gerar QR Code:', error);
     }
@@ -345,7 +339,7 @@ const PatientProfile = () => {
                   `<div class="qr-fallback">
                     <div style="font-weight: 600; margin-bottom: 10px;">QR Code</div>
                     <div style="font-size: 12px; color: #9ca3af;">Erro ao gerar QR Code</div>
-                    <div style="font-size: 10px; color: #d1d5db; margin-top: 8px;">${qrCodeForPatient}</div>
+                    <div style="font-size: 10px; color: #d1d5db; margin-top: 8px;">${qrCode}</div>
                   </div>`
                 }
               </div>
@@ -361,7 +355,7 @@ const PatientProfile = () => {
             <div class="clinic-info">
               <strong>CineBaby</strong> - Momentos que emocionam para sempre<br/>
               Em parceria com ${clinic.name}<br/>
-              <small style="font-size: 12px; color: #9ca3af;">Código: ${qrCodeForPatient}</small>
+              <small style="font-size: 12px; color: #9ca3af;">Código: ${qrCode}</small>
             </div>
             
             <button class="print-button no-print" onclick="window.print()">
@@ -390,6 +384,17 @@ const PatientProfile = () => {
           );
           localStorage.setItem(`cinebaby_patients_${clinic.id}`, JSON.stringify(updatedPatients));
           setPatient({ ...patient, videosCount: updatedVideos.length });
+        }
+
+        // Atualizar também os dados do QR Code
+        if (updatedVideos.length > 0) {
+          const patientData = {
+            patient: patient,
+            clinic: clinic,
+            videos: updatedVideos
+          };
+          const qrCode = `PATIENT_${patient.id}`;
+          localStorage.setItem(`cinebaby_qr_${qrCode}`, JSON.stringify(patientData));
         }
       }
 
@@ -570,7 +575,7 @@ const PatientProfile = () => {
                           <div className="flex items-center space-x-3">
                             <Badge variant="outline" className="border-teal-200 text-teal-700 px-3 py-1">
                               <QrCode className="h-4 w-4 mr-1" />
-                              QR: {video.qrCode.substring(0, 20)}...
+                              QR: PATIENT_{patient.id}
                             </Badge>
                             {video.fileUrl && (
                               <Button
