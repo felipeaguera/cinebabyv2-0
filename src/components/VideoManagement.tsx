@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Video, Trash2, Eye, Users, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { PatientSearch } from "@/components/admin/PatientSearch";
 
 interface Patient {
   id: string;
@@ -33,12 +34,27 @@ interface PatientVideo {
 
 const VideoManagement = () => {
   const [allPatients, setAllPatients] = useState<Patient[]>([]);
+  const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedVideo, setSelectedVideo] = useState<PatientVideo | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     loadAllData();
   }, []);
+
+  useEffect(() => {
+    // Filtrar pacientes baseado no termo de busca
+    if (searchTerm.trim() === "") {
+      setFilteredPatients(allPatients);
+    } else {
+      const filtered = allPatients.filter(patient =>
+        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.mother_name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredPatients(filtered);
+    }
+  }, [searchTerm, allPatients]);
 
   const loadAllData = async () => {
     try {
@@ -166,6 +182,9 @@ const VideoManagement = () => {
         </Card>
       </div>
 
+      {/* Busca de Pacientes */}
+      <PatientSearch searchTerm={searchTerm} onSearchChange={setSearchTerm} />
+
       {/* Lista de Pacientes e Vídeos */}
       <Card className="cinebaby-card">
         <CardHeader>
@@ -174,18 +193,31 @@ const VideoManagement = () => {
             Gerenciamento de Vídeos
           </CardTitle>
           <CardDescription className="text-lg">
-            Visualize e gerencie todos os vídeos uploadados na plataforma
+            {searchTerm ? (
+              <>Encontradas {filteredPatients.length} paciente{filteredPatients.length !== 1 ? 's' : ''} para "{searchTerm}"</>
+            ) : (
+              <>Visualize e gerencie todos os vídeos uploadados na plataforma</>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {allPatients.length === 0 ? (
+          {filteredPatients.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Video className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-xl mb-2">Nenhum paciente cadastrado ainda</p>
+              {searchTerm ? (
+                <div>
+                  <p className="text-xl mb-2">Nenhuma paciente encontrada</p>
+                  <p>Tente buscar por um nome diferente</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xl mb-2">Nenhum paciente cadastrado ainda</p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-6">
-              {allPatients.map((patient) => (
+              {filteredPatients.map((patient) => (
                 <div key={patient.id} className="border rounded-lg p-4 bg-gray-50">
                   <div className="flex justify-between items-start mb-4">
                     <div>
