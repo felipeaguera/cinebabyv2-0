@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +83,7 @@ const PatientVideos = () => {
               if (storedVideos) {
                 const parsedVideos = JSON.parse(storedVideos);
                 console.log('🎥 Vídeos encontrados:', parsedVideos.length);
-                setVideos(parsedVide os);
+                setVideos(parsedVideos);
               }
               
               setLoading(false);
