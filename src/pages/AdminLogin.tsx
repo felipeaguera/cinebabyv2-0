@@ -59,11 +59,9 @@ const AdminLogin = () => {
         <Card className="cinebaby-card border-0 shadow-2xl">
           <CardHeader className="text-center pb-8">
             <div className="mx-auto w-20 h-20 bg-gradient-to-br from-purple-100 to-purple-200 rounded-3xl flex items-center justify-center mb-6 shadow-lg">
-              <img 
-                src="/lovable-uploads/0f255407-3789-418f-8a06-69187f941576.png" 
-                alt="CineBaby Logo" 
-                className="h-16 w-auto"
-              />
+              <div className="mx-auto w-14 h-14 bg-gradient-to-br from-purple-400 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
+                <Shield className="h-7 w-7 text-white" />
+              </div>
             </div>
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
               Admin Login
