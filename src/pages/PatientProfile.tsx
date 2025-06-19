@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Upload, QrCode, Printer, Play, Calendar, Trash2, Eye } from "lucide-react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import QRCodeLib from 'qrcode';
 
 interface Patient {
   id: number;
@@ -138,8 +139,25 @@ const PatientProfile = () => {
     });
   };
 
-  const handlePrintQRCode = () => {
+  const handlePrintQRCode = async () => {
     if (!patient || !clinic) return;
+
+    // Gerar QR Code real
+    const qrCodeData = `${window.location.origin}/patient-videos/${patient.id}-${Date.now()}`;
+    let qrCodeDataURL = '';
+    
+    try {
+      qrCodeDataURL = await QRCodeLib.toDataURL(qrCodeData, {
+        width: 220,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+    } catch (error) {
+      console.error('Erro ao gerar QR Code:', error);
+    }
 
     const printWindow = window.open('', '_blank');
     if (printWindow) {
@@ -228,9 +246,18 @@ const PatientProfile = () => {
               display: flex;
               align-items: center;
               justify-content: center;
+              box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            }
+            .qr-code img {
+              width: 100%;
+              height: 100%;
+              object-fit: contain;
+              border-radius: 8px;
+            }
+            .qr-fallback {
               font-size: 14px;
               color: #6b7280;
-              box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+              text-align: center;
             }
             .qr-instructions {
               font-size: 14px;
@@ -282,11 +309,14 @@ const PatientProfile = () => {
             
             <div class="qr-section">
               <div class="qr-code">
-                <div>
-                  <div style="font-weight: 600; margin-bottom: 10px;">QR Code</div>
-                  <div style="font-size: 12px; color: #9ca3af;">Será gerado aqui</div>
-                  <div style="font-size: 10px; color: #d1d5db; margin-top: 8px;">${patient.id}-${Date.now()}</div>
-                </div>
+                ${qrCodeDataURL ? 
+                  `<img src="${qrCodeDataURL}" alt="QR Code para acessar vídeos" />` : 
+                  `<div class="qr-fallback">
+                    <div style="font-weight: 600; margin-bottom: 10px;">QR Code</div>
+                    <div style="font-size: 12px; color: #9ca3af;">Erro ao gerar QR Code</div>
+                    <div style="font-size: 10px; color: #d1d5db; margin-top: 8px;">${patient.id}-${Date.now()}</div>
+                  </div>`
+                }
               </div>
               <div class="qr-instructions">
                 Escaneie este código para acessar os vídeos do seu bebê
