@@ -142,8 +142,8 @@ const PatientProfile = () => {
   const handlePrintQRCode = async () => {
     if (!patient || !clinic) return;
 
-    // Gerar QR Code real
-    const qrCodeData = `${window.location.origin}/patient-videos/${patient.id}-${Date.now()}`;
+    // Gerar QR Code real com o ID da paciente
+    const qrCodeData = `${window.location.origin}/patient/${patient.id}`;
     let qrCodeDataURL = '';
     
     try {
@@ -314,7 +314,7 @@ const PatientProfile = () => {
                   `<div class="qr-fallback">
                     <div style="font-weight: 600; margin-bottom: 10px;">QR Code</div>
                     <div style="font-size: 12px; color: #9ca3af;">Erro ao gerar QR Code</div>
-                    <div style="font-size: 10px; color: #d1d5db; margin-top: 8px;">${patient.id}-${Date.now()}</div>
+                    <div style="font-size: 10px; color: #d1d5db; margin-top: 8px;">${patient.id}</div>
                   </div>`
                 }
               </div>

@@ -39,8 +39,10 @@ const PatientVideos = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simular busca por QR Code (será substituído pela integração Supabase)
-    const findPatientByQRCode = () => {
+    // Buscar paciente pelo ID (não mais por QR Code)
+    const findPatientById = () => {
+      if (!qrCode) return;
+      
       // Buscar em todas as clínicas
       const storedClinics = localStorage.getItem("cinebaby_clinics");
       if (!storedClinics) return;
@@ -52,20 +54,21 @@ const PatientVideos = () => {
         if (storedPatients) {
           const patients = JSON.parse(storedPatients);
           
-          for (const patient of patients) {
-            const storedVideos = localStorage.getItem(`cinebaby_videos_${patient.id}`);
+          // Buscar pelo ID da paciente (que vem no parâmetro qrCode)
+          const foundPatient = patients.find((patient: Patient) => patient.id.toString() === qrCode);
+          
+          if (foundPatient) {
+            setPatient(foundPatient);
+            setClinic(clinic);
+            
+            // Carregar vídeos da paciente
+            const storedVideos = localStorage.getItem(`cinebaby_videos_${foundPatient.id}`);
             if (storedVideos) {
-              const patientVideos = JSON.parse(storedVideos);
-              const hasQRCode = patientVideos.some((video: Video) => video.qrCode === qrCode);
-              
-              if (hasQRCode) {
-                setPatient(patient);
-                setClinic(clinic);
-                setVideos(patientVideos);
-                setLoading(false);
-                return;
-              }
+              setVideos(JSON.parse(storedVideos));
             }
+            
+            setLoading(false);
+            return;
           }
         }
       }
@@ -73,7 +76,7 @@ const PatientVideos = () => {
       setLoading(false);
     };
 
-    findPatientByQRCode();
+    findPatientById();
   }, [qrCode]);
 
   if (loading) {
@@ -169,13 +172,25 @@ const PatientVideos = () => {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                      <div className="text-center text-gray-500">
-                        <Play className="h-12 w-12 mx-auto mb-2" />
-                        <p className="text-sm">Vídeo do seu bebê</p>
-                        <p className="text-xs">{video.fileName}</p>
+                    {video.fileUrl ? (
+                      <div className="aspect-video bg-gray-100 rounded-lg mb-4 overflow-hidden">
+                        <video
+                          src={video.fileUrl}
+                          controls
+                          className="w-full h-full object-cover"
+                        >
+                          Seu navegador não suporta a reprodução de vídeo.
+                        </video>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center mb-4">
+                        <div className="text-center text-gray-500">
+                          <Play className="h-12 w-12 mx-auto mb-2" />
+                          <p className="text-sm">Vídeo do seu bebê</p>
+                          <p className="text-xs">{video.fileName}</p>
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center text-sm text-gray-600">
                       <Calendar className="h-4 w-4 mr-2" />
                       <span>
