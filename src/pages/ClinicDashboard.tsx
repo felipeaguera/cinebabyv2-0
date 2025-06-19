@@ -144,9 +144,9 @@ const ClinicDashboard = () => {
             <div className="flex items-center space-x-4">
               <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
                 <img 
-                  src="/lovable-uploads/4d8583ce-0aed-4b79-aa55-3c03b32e9c88.png" 
+                  src="/lovable-uploads/0f255407-3789-418f-8a06-69187f941576.png" 
                   alt="CineBaby Logo" 
-                  className="h-10 w-auto"
+                  className="h-12 w-auto"
                 />
               </div>
               <div>

@@ -81,7 +81,7 @@ const PatientVideos = () => {
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
         <div className="text-center">
           <img 
-            src="/lovable-uploads/4d8583ce-0aed-4b79-aa55-3c03b32e9c88.png" 
+            src="/lovable-uploads/0f255407-3789-418f-8a06-69187f941576.png" 
             alt="CineBaby Logo" 
             className="mx-auto h-16 w-auto mb-4"
           />
@@ -96,7 +96,7 @@ const PatientVideos = () => {
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center">
         <div className="text-center max-w-md mx-auto p-6">
           <img 
-            src="/lovable-uploads/4d8583ce-0aed-4b79-aa55-3c03b32e9c88.png" 
+            src="/lovable-uploads/0f255407-3789-418f-8a06-69187f941576.png" 
             alt="CineBaby Logo" 
             className="mx-auto h-16 w-auto mb-4"
           />
@@ -117,9 +117,9 @@ const PatientVideos = () => {
           <div className="flex items-center justify-center py-6">
             <div className="text-center">
               <img 
-                src="/lovable-uploads/4d8583ce-0aed-4b79-aa55-3c03b32e9c88.png" 
+                src="/lovable-uploads/0f255407-3789-418f-8a06-69187f941576.png" 
                 alt="CineBaby Logo" 
-                className="mx-auto h-12 w-auto mb-3"
+                className="mx-auto h-16 w-auto mb-3"
               />
               <h1 className="text-3xl font-bold text-pink-800">Seus Momentos Especiais</h1>
               <p className="text-gray-600 mt-1">Reviva a emoção de ver seu bebê</p>

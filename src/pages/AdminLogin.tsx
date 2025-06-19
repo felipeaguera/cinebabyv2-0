@@ -60,9 +60,9 @@ const AdminLogin = () => {
           <CardHeader className="text-center pb-8">
             <div className="mx-auto w-20 h-20 bg-gradient-to-br from-purple-100 to-purple-200 rounded-3xl flex items-center justify-center mb-6 shadow-lg">
               <img 
-                src="/lovable-uploads/4d8583ce-0aed-4b79-aa55-3c03b32e9c88.png" 
+                src="/lovable-uploads/0f255407-3789-418f-8a06-69187f941576.png" 
                 alt="CineBaby Logo" 
-                className="h-12 w-auto"
+                className="h-16 w-auto"
               />
             </div>
             <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
