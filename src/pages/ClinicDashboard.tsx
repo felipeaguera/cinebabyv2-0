@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LogOut, Plus, Search, Users, Eye } from "lucide-react";
+import { LogOut, Plus, Search, Users, Eye, Edit, Trash2 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import EditPatientDialog from "@/components/EditPatientDialog";
+import Badge from "@/components/ui/badge";
 
 interface Patient {
   id: number;
@@ -33,6 +34,7 @@ const ClinicDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [clinic, setClinic] = useState<Clinic | null>(null);
   const [isAddingPatient, setIsAddingPatient] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [newPatient, setNewPatient] = useState({
     name: "",
     phone: ""
@@ -41,7 +43,6 @@ const ClinicDashboard = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Verificar se está logado como clínica
     const clinicData = localStorage.getItem("cinebaby_clinic");
     if (!clinicData) {
       navigate("/clinic/login");
@@ -51,7 +52,6 @@ const ClinicDashboard = () => {
     const parsedClinic = JSON.parse(clinicData);
     setClinic(parsedClinic);
 
-    // Carregar pacientes da clínica
     const storedPatients = localStorage.getItem(`cinebaby_patients_${parsedClinic.id}`);
     if (storedPatients) {
       const patientsData = JSON.parse(storedPatients);
@@ -61,7 +61,6 @@ const ClinicDashboard = () => {
   }, [navigate]);
 
   useEffect(() => {
-    // Filtrar pacientes baseado na busca
     const filtered = patients.filter(patient =>
       patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.phone.includes(searchTerm)
@@ -108,27 +107,54 @@ const ClinicDashboard = () => {
     });
   };
 
+  const handleEditPatient = (updatedPatient: Patient) => {
+    const updatedPatients = patients.map(patient => 
+      patient.id === updatedPatient.id ? updatedPatient : patient
+    );
+    setPatients(updatedPatients);
+    localStorage.setItem(`cinebaby_patients_${clinic?.id}`, JSON.stringify(updatedPatients));
+    setEditingPatient(null);
+  };
+
+  const handleDeletePatient = (patientId: number) => {
+    if (window.confirm("Tem certeza que deseja excluir esta paciente? Todos os vídeos serão perdidos.")) {
+      const updatedPatients = patients.filter(patient => patient.id !== patientId);
+      setPatients(updatedPatients);
+      localStorage.setItem(`cinebaby_patients_${clinic?.id}`, JSON.stringify(updatedPatients));
+      
+      // Remove também os vídeos da paciente
+      localStorage.removeItem(`cinebaby_videos_${patientId}`);
+      
+      toast({
+        title: "Paciente excluída",
+        description: "A paciente foi removida com sucesso.",
+      });
+    }
+  };
+
   if (!clinic) {
     return <div>Carregando...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
-      <header className="bg-white shadow-sm border-b">
+    <div className="min-h-screen cinebaby-gradient">
+      <header className="bg-white/10 backdrop-blur-md border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-3">
-              <img 
-                src="/lovable-uploads/4d8583ce-0aed-4b79-aa55-3c03b32e9c88.png" 
-                alt="CineBaby Logo" 
-                className="h-8 w-auto"
-              />
+          <div className="flex justify-between items-center py-6">
+            <div className="flex items-center space-x-4">
+              <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-3">
+                <img 
+                  src="/lovable-uploads/4d8583ce-0aed-4b79-aa55-3c03b32e9c88.png" 
+                  alt="CineBaby Logo" 
+                  className="h-10 w-auto"
+                />
+              </div>
               <div>
-                <h1 className="text-2xl font-bold text-pink-800">{clinic.name}</h1>
-                <p className="text-sm text-gray-600">{clinic.city}</p>
+                <h1 className="text-3xl font-bold text-white drop-shadow-lg">{clinic.name}</h1>
+                <p className="text-white/80 font-medium">{clinic.city}</p>
               </div>
             </div>
-            <Button variant="outline" onClick={handleLogout} className="text-pink-600 border-pink-200">
+            <Button variant="outline" onClick={handleLogout} className="bg-white/20 border-white/30 text-white hover:bg-white/30 backdrop-blur-sm">
               <LogOut className="h-4 w-4 mr-2" />
               Sair
             </Button>
@@ -140,13 +166,13 @@ const ClinicDashboard = () => {
         <div className="mb-8">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900">Pacientes</h2>
-              <p className="text-gray-600 mt-1">Gerencie as pacientes da sua clínica</p>
+              <h2 className="text-3xl font-bold text-white mb-2 drop-shadow-lg">Pacientes</h2>
+              <p className="text-white/80 text-lg">Gerencie as pacientes da sua clínica</p>
             </div>
             <Dialog open={isAddingPatient} onOpenChange={setIsAddingPatient}>
               <DialogTrigger asChild>
-                <Button className="bg-pink-600 hover:bg-pink-700">
-                  <Plus className="h-4 w-4 mr-2" />
+                <Button className="cinebaby-button-secondary text-lg px-6 py-3 rounded-xl">
+                  <Plus className="h-5 w-5 mr-2" />
                   Nova Paciente
                 </Button>
               </DialogTrigger>
@@ -176,7 +202,7 @@ const ClinicDashboard = () => {
                       placeholder="(11) 99999-9999"
                     />
                   </div>
-                  <Button onClick={handleAddPatient} className="w-full bg-pink-600 hover:bg-pink-700">
+                  <Button onClick={handleAddPatient} className="w-full cinebaby-button-secondary">
                     Cadastrar Paciente
                   </Button>
                 </div>
@@ -185,10 +211,10 @@ const ClinicDashboard = () => {
           </div>
         </div>
 
-        <Card className="mb-8">
+        <Card className="cinebaby-card mb-8">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Search className="h-5 w-5 mr-2 text-pink-600" />
+            <CardTitle className="flex items-center text-teal-800">
+              <Search className="h-6 w-6 mr-3 text-teal-600" />
               Buscar Paciente
             </CardTitle>
           </CardHeader>
@@ -197,60 +223,96 @@ const ClinicDashboard = () => {
               placeholder="Busque por nome ou telefone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-md"
+              className="max-w-md text-lg py-3"
             />
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="cinebaby-card">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Users className="h-5 w-5 mr-2 text-pink-600" />
+            <CardTitle className="flex items-center text-purple-800">
+              <Users className="h-6 w-6 mr-3 text-purple-600" />
               Lista de Pacientes
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-lg">
               {filteredPatients.length} paciente{filteredPatients.length !== 1 ? 's' : ''} encontrada{filteredPatients.length !== 1 ? 's' : ''}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {filteredPatients.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                {searchTerm ? "Nenhuma paciente encontrada." : "Nenhuma paciente cadastrada ainda."}
+              <div className="text-center py-12 text-gray-500">
+                <Users className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                <p className="text-xl mb-2">
+                  {searchTerm ? "Nenhuma paciente encontrada" : "Nenhuma paciente cadastrada ainda"}
+                </p>
+                <p>{searchTerm ? "Tente outros termos de busca" : "Comece cadastrando sua primeira paciente"}</p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Telefone</TableHead>
-                    <TableHead>Vídeos</TableHead>
-                    <TableHead>Data Cadastro</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPatients.map((patient) => (
-                    <TableRow key={patient.id}>
-                      <TableCell className="font-medium">{patient.name}</TableCell>
-                      <TableCell>{patient.phone}</TableCell>
-                      <TableCell>{patient.videosCount} vídeo{patient.videosCount !== 1 ? 's' : ''}</TableCell>
-                      <TableCell>{new Date(patient.createdAt).toLocaleDateString('pt-BR')}</TableCell>
-                      <TableCell>
-                        <Button asChild variant="outline" size="sm">
-                          <Link to={`/clinic/patient/${patient.id}`}>
-                            <Eye className="h-4 w-4 mr-2" />
-                            Ver Perfil
-                          </Link>
-                        </Button>
-                      </TableCell>
+              <div className="rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gradient-to-r from-teal-50 to-purple-50">
+                      <TableHead className="font-semibold">Nome</TableHead>
+                      <TableHead className="font-semibold">Telefone</TableHead>
+                      <TableHead className="font-semibold">Vídeos</TableHead>
+                      <TableHead className="font-semibold">Data Cadastro</TableHead>
+                      <TableHead className="font-semibold text-center">Ações</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPatients.map((patient) => (
+                      <TableRow key={patient.id} className="hover:bg-teal-50/50 transition-colors">
+                        <TableCell className="font-medium">{patient.name}</TableCell>
+                        <TableCell>{patient.phone}</TableCell>
+                        <TableCell>
+                          <Badge className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300">
+                            {patient.videosCount} vídeo{patient.videosCount !== 1 ? 's' : ''}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{new Date(patient.createdAt).toLocaleDateString('pt-BR')}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center space-x-2">
+                            <Button asChild variant="outline" size="sm" className="hover:bg-teal-50 hover:border-teal-300">
+                              <Link to={`/clinic/patient/${patient.id}`}>
+                                <Eye className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditingPatient(patient)}
+                              className="hover:bg-purple-50 hover:border-purple-300"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeletePatient(patient.id)}
+                              className="hover:bg-red-50 hover:border-red-300 text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
       </main>
+
+      {editingPatient && (
+        <EditPatientDialog
+          patient={editingPatient}
+          isOpen={!!editingPatient}
+          onClose={() => setEditingPatient(null)}
+          onSave={handleEditPatient}
+        />
+      )}
     </div>
   );
 };
