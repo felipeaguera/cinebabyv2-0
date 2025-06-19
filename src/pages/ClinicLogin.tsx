@@ -23,13 +23,10 @@ const ClinicLogin = () => {
     try {
       console.log('🔍 Tentando fazer login com:', email);
 
-      // Buscar usuário e clínica associada
+      // Buscar usuário primeiro
       const { data: user, error: userError } = await supabase
         .from('users')
-        .select(`
-          *,
-          clinics (*)
-        `)
+        .select('*')
         .eq('email', email)
         .eq('password', password)
         .eq('role', 'clinic')
@@ -47,12 +44,16 @@ const ClinicLogin = () => {
       }
 
       console.log('✅ Usuário encontrado:', user);
-      console.log('✅ Clínicas associadas:', user.clinics);
 
-      // Verificar se existe clínica associada
-      const clinic = user.clinics?.[0];
-      if (!clinic) {
-        console.error('❌ Nenhuma clínica encontrada para este usuário');
+      // Buscar clínica associada ao usuário
+      const { data: clinic, error: clinicError } = await supabase
+        .from('clinics')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (clinicError || !clinic) {
+        console.error('❌ Nenhuma clínica encontrada para este usuário:', clinicError);
         toast({
           title: "Erro no login",
           description: "Nenhuma clínica encontrada para este usuário. Entre em contato com o suporte.",
@@ -62,8 +63,9 @@ const ClinicLogin = () => {
         return;
       }
 
-      // Salvar informações da clínica corretamente
-      console.log('✅ Salvando dados da clínica:', clinic);
+      console.log('✅ Clínica encontrada:', clinic);
+
+      // Salvar informações da clínica
       localStorage.setItem("cinebaby_clinic", JSON.stringify(clinic));
       
       toast({
