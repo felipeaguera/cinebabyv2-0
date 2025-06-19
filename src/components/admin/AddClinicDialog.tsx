@@ -35,32 +35,43 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
     }
 
     try {
-      console.log('Tentando criar clínica:', newClinic.name, newClinic.email);
+      console.log('🔍 Tentando criar clínica:', newClinic.name, newClinic.email);
 
-      // Primeiro, criar o usuário na tabela users
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .insert({
-          email: newClinic.email,
-          password: newClinic.password,
-          role: 'clinic'
-        })
-        .select()
-        .single();
+      // Criar usuário usando Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: newClinic.email,
+        password: newClinic.password,
+        options: {
+          data: {
+            role: 'clinic',
+            clinic_name: newClinic.name
+          }
+        }
+      });
 
-      if (userError) {
-        console.error('Erro ao criar usuário:', userError);
+      if (authError) {
+        console.error('❌ Erro ao criar usuário:', authError);
         toast({
           title: "Erro",
-          description: "Erro ao criar usuário: " + userError.message,
+          description: "Erro ao criar usuário: " + authError.message,
           variant: "destructive",
         });
         return;
       }
 
-      console.log('Usuário criado com sucesso:', userData);
+      if (!authData.user) {
+        console.error('❌ Usuário não foi criado');
+        toast({
+          title: "Erro",
+          description: "Erro ao criar usuário - dados não retornados",
+          variant: "destructive",
+        });
+        return;
+      }
 
-      // Depois, criar a clínica associada ao usuário
+      console.log('✅ Usuário criado com sucesso:', authData.user.id);
+
+      // Criar a clínica na tabela clinics
       const { data: clinicData, error: clinicError } = await supabase
         .from('clinics')
         .insert({
@@ -69,20 +80,13 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
           city: newClinic.city,
           email: newClinic.email,
           phone: newClinic.phone || null,
-          user_id: userData.id
+          user_id: authData.user.id
         })
         .select()
         .single();
 
       if (clinicError) {
-        console.error('Erro ao criar clínica:', clinicError);
-        
-        // Se der erro ao criar a clínica, limpar o usuário criado
-        await supabase
-          .from('users')
-          .delete()
-          .eq('id', userData.id);
-
+        console.error('❌ Erro ao criar clínica:', clinicError);
         toast({
           title: "Erro",
           description: "Erro ao criar clínica: " + clinicError.message,
@@ -91,7 +95,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
         return;
       }
 
-      console.log('Clínica criada com sucesso:', clinicData);
+      console.log('✅ Clínica criada com sucesso:', clinicData);
 
       setNewClinic({ name: "", address: "", city: "", email: "", password: "", phone: "" });
       setIsOpen(false);
@@ -102,7 +106,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
         description: `${clinicData.name} foi cadastrada com sucesso.`,
       });
     } catch (err) {
-      console.error('Erro inesperado ao cadastrar clínica:', err);
+      console.error('❌ Erro inesperado ao cadastrar clínica:', err);
       toast({
         title: "Erro",
         description: "Ocorreu um erro inesperado: " + (err as Error).message,

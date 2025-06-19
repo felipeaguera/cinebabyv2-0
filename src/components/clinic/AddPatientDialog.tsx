@@ -54,6 +54,21 @@ export const AddPatientDialog = ({ clinic, onPatientAdded }: AddPatientDialogPro
     }
 
     try {
+      // Verificar se o usuário está autenticado
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        console.error('❌ Usuário não autenticado:', userError);
+        toast({
+          title: "Erro",
+          description: "Sessão expirada. Faça login novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('✅ Usuário autenticado:', user.email);
+
       const patientData = {
         name: newPatient.name,
         phone: newPatient.phone || null,
@@ -76,7 +91,7 @@ export const AddPatientDialog = ({ clinic, onPatientAdded }: AddPatientDialogPro
         console.error('❌ Erro ao criar paciente:', error);
         toast({
           title: "Erro",
-          description: "Erro ao cadastrar paciente. Tente novamente.",
+          description: "Erro ao cadastrar paciente: " + error.message,
           variant: "destructive",
         });
         return;
