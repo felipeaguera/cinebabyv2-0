@@ -36,16 +36,32 @@ const ClinicLogin = () => {
 
       if (error) {
         console.error('❌ Erro no login:', error);
-        toast({
-          title: "Erro no login",
-          description: "Email ou senha incorretos.",
-          variant: "destructive",
-        });
+        
+        // Tratar diferentes tipos de erro
+        if (error.message?.includes('Email not confirmed')) {
+          toast({
+            title: "Email não confirmado",
+            description: "Por favor, verifique seu email para confirmar a conta ou entre em contato com o administrador.",
+            variant: "destructive",
+          });
+        } else if (error.message?.includes('Invalid login credentials')) {
+          toast({
+            title: "Credenciais inválidas",
+            description: "Email ou senha incorretos. Verifique seus dados e tente novamente.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro no login",
+            description: error.message || "Erro desconhecido. Tente novamente.",
+            variant: "destructive",
+          });
+        }
         setIsLoading(false);
         return;
       }
 
-      // O redirecionamento será feito pelo useEffect quando o estado for atualizado
+      // Se chegou até aqui, o login foi bem-sucedido
       toast({
         title: "Login realizado com sucesso!",
         description: "Bem-vinda ao painel da clínica!",
@@ -55,7 +71,7 @@ const ClinicLogin = () => {
       console.error('❌ Erro geral no login:', err);
       toast({
         title: "Erro no login",
-        description: "Ocorreu um erro. Tente novamente.",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
         variant: "destructive",
       });
       setIsLoading(false);
@@ -136,6 +152,10 @@ const ClinicLogin = () => {
                 {isLoading ? "Entrando..." : "Entrar"}
               </Button>
             </form>
+            
+            <div className="text-center text-sm text-gray-500 mt-4">
+              <p>Problemas para acessar? Entre em contato com o administrador.</p>
+            </div>
           </CardContent>
         </Card>
       </div>

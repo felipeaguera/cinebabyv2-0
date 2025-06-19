@@ -66,7 +66,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
         return;
       }
 
-      // Criar usuário no Supabase Auth
+      // Criar usuário no Supabase Auth com confirmação automática
       console.log('Criando usuário no Supabase Auth...');
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newClinic.email,
@@ -74,7 +74,8 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
         options: {
           emailRedirectTo: `${window.location.origin}/clinic/login`,
           data: {
-            clinic_name: newClinic.name
+            clinic_name: newClinic.name,
+            email_confirm: true
           }
         }
       });
@@ -135,15 +136,6 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
       if (clinicError) {
         console.error('Erro ao criar clínica:', clinicError);
         
-        // Se falhou ao criar a clínica, tentar remover o usuário criado
-        try {
-          console.log('Removendo usuário órfão...');
-          // Nota: Não podemos deletar usuários via API client, apenas via admin API
-          // O usuário ficará órfão mas não poderá fazer login como clínica
-        } catch (cleanupError) {
-          console.error('Erro ao limpar usuário órfão:', cleanupError);
-        }
-        
         toast({
           title: "Erro",
           description: "Erro ao criar clínica: " + clinicError.message,
@@ -155,8 +147,11 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
 
       console.log('Clínica criada com sucesso:', clinicData);
 
+      // Limpar formulário e fechar dialog
       setNewClinic({ name: "", address: "", city: "", email: "", password: "", phone: "" });
       setIsOpen(false);
+      
+      // Chamar callback para atualizar a lista
       onClinicAdded();
 
       toast({

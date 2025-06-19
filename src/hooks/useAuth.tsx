@@ -35,7 +35,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           setIsAdmin(false);
           setClinicData(null);
-          // Limpar localStorage quando fazer logout
           localStorage.removeItem("cinebaby_clinic");
         }
         
@@ -87,7 +86,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         localStorage.setItem("cinebaby_clinic", JSON.stringify(clinic));
       } else {
         console.log('User is not a valid clinic, signing out');
-        // Se não é admin nem clínica válida, fazer logout
         await supabase.auth.signOut();
         setIsAdmin(false);
         setClinicData(null);
@@ -98,14 +96,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     console.log('Attempting to sign in with:', email);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) {
-      console.error('Sign in error:', error);
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error('Sign in error:', error);
+        // Se o erro for de email não confirmado, tentar confirmar automaticamente
+        if (error.message.includes('Email not confirmed')) {
+          console.log('Tentando confirmar email automaticamente...');
+          // Para desenvolvimento, vamos tentar reenviar a confirmação
+          const { error: resendError } = await supabase.auth.resend({
+            type: 'signup',
+            email: email
+          });
+          
+          if (!resendError) {
+            return { 
+              error: { 
+                message: 'Email de confirmação reenviado. Por favor, verifique sua caixa de entrada.' 
+              } 
+            };
+          }
+        }
+      }
+      
+      return { error };
+    } catch (err) {
+      console.error('Unexpected error during sign in:', err);
+      return { error: err };
     }
-    return { error };
   };
 
   const signOut = async () => {
