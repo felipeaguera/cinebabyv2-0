@@ -14,6 +14,7 @@ interface AddClinicDialogProps {
 
 const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [newClinic, setNewClinic] = useState({
     name: "",
     address: "",
@@ -34,10 +35,29 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
       return;
     }
 
+    setIsLoading(true);
+
     try {
       console.log('Tentando criar clínica:', newClinic.name, newClinic.email);
 
-      // Primeiro, criar usuário no Supabase Auth
+      // Verificar se o email já existe
+      const { data: existingClinic } = await supabase
+        .from('clinics')
+        .select('email')
+        .eq('email', newClinic.email)
+        .single();
+
+      if (existingClinic) {
+        toast({
+          title: "Erro",
+          description: "Já existe uma clínica cadastrada com este email.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Criar usuário no Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newClinic.email,
         password: newClinic.password,
@@ -48,17 +68,28 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
 
       if (authError) {
         console.error('Erro ao criar usuário no Supabase Auth:', authError);
-        toast({
-          title: "Erro",
-          description: "Erro ao criar usuário: " + authError.message,
-          variant: "destructive",
-        });
+        
+        // Tratar erro de rate limit especificamente
+        if (authError.message.includes('For security purposes')) {
+          toast({
+            title: "Limite de tentativas",
+            description: "Aguarde alguns segundos antes de tentar novamente.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Erro",
+            description: "Erro ao criar usuário: " + authError.message,
+            variant: "destructive",
+          });
+        }
+        setIsLoading(false);
         return;
       }
 
       console.log('Usuário criado no Supabase Auth:', authData.user?.id);
 
-      // Depois, criar a clínica na tabela clinics
+      // Criar a clínica na tabela clinics
       const { data: clinicData, error: clinicError } = await supabase
         .from('clinics')
         .insert({
@@ -79,6 +110,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
           description: "Erro ao criar clínica: " + clinicError.message,
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
@@ -96,9 +128,11 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
       console.error('Erro inesperado ao cadastrar clínica:', err);
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado: " + (err as Error).message,
+        description: "Ocorreu um erro inesperado. Tente novamente.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -125,6 +159,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
               value={newClinic.name}
               onChange={(e) => setNewClinic({ ...newClinic, name: e.target.value })}
               placeholder="Ex: Clínica São João"
+              disabled={isLoading}
             />
           </div>
           <div className="space-y-2">
@@ -134,6 +169,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
               value={newClinic.address}
               onChange={(e) => setNewClinic({ ...newClinic, address: e.target.value })}
               placeholder="Ex: Rua das Flores, 123"
+              disabled={isLoading}
             />
           </div>
           <div className="space-y-2">
@@ -143,6 +179,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
               value={newClinic.city}
               onChange={(e) => setNewClinic({ ...newClinic, city: e.target.value })}
               placeholder="Ex: São Paulo"
+              disabled={isLoading}
             />
           </div>
           <div className="space-y-2">
@@ -152,6 +189,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
               value={newClinic.phone}
               onChange={(e) => setNewClinic({ ...newClinic, phone: e.target.value })}
               placeholder="Ex: (11) 99999-9999"
+              disabled={isLoading}
             />
           </div>
           <div className="space-y-2">
@@ -162,6 +200,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
               value={newClinic.email}
               onChange={(e) => setNewClinic({ ...newClinic, email: e.target.value })}
               placeholder="clinica@exemplo.com"
+              disabled={isLoading}
             />
           </div>
           <div className="space-y-2">
@@ -172,10 +211,15 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
               value={newClinic.password}
               onChange={(e) => setNewClinic({ ...newClinic, password: e.target.value })}
               placeholder="Senha de acesso (mínimo 6 caracteres)"
+              disabled={isLoading}
             />
           </div>
-          <Button onClick={handleAddClinic} className="w-full cinebaby-button-primary">
-            Cadastrar Clínica
+          <Button 
+            onClick={handleAddClinic} 
+            className="w-full cinebaby-button-primary"
+            disabled={isLoading}
+          >
+            {isLoading ? "Cadastrando..." : "Cadastrar Clínica"}
           </Button>
         </div>
       </DialogContent>
