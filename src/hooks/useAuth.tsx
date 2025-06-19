@@ -24,18 +24,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Configurar listener para mudanças de autenticação
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.email);
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Verificar se é admin
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .single();
-          
-          setIsAdmin(profile?.role === 'admin');
+          // Verificar se é admin baseado no email
+          const adminEmail = 'admin@cinebaby.online';
+          const isUserAdmin = session.user.email === adminEmail;
+          setIsAdmin(isUserAdmin);
+          console.log('Is admin:', isUserAdmin, 'User email:', session.user.email);
         } else {
           setIsAdmin(false);
         }
@@ -46,8 +44,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Verificar sessão existente
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Getting existing session:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        const adminEmail = 'admin@cinebaby.online';
+        const isUserAdmin = session.user.email === adminEmail;
+        setIsAdmin(isUserAdmin);
+        console.log('Existing session - Is admin:', isUserAdmin, 'User email:', session.user.email);
+      } else {
+        setIsAdmin(false);
+      }
+      
       setLoading(false);
     });
 
@@ -55,14 +64,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    console.log('Attempting to sign in with:', email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    if (error) {
+      console.error('Sign in error:', error);
+    }
     return { error };
   };
 
   const signOut = async () => {
+    console.log('Signing out');
     await supabase.auth.signOut();
     localStorage.removeItem("cinebaby_admin");
   };
