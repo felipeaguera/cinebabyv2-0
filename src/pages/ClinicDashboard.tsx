@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,20 +9,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { LogOut, Plus, Search, Users, Eye, Edit, Trash2 } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
-import EditPatientDialog from "@/components/EditPatientDialog";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Patient {
-  id: number;
+  id: string;
   name: string;
   phone: string;
-  clinicId: number;
-  createdAt: string;
-  videosCount: number;
+  clinic_id: string;
+  created_at: string;
+  mother_name: string;
+  birth_date: string;
+  gestational_age: string;
+  qr_code: string;
+  videosCount?: number;
 }
 
 interface Clinic {
-  id: number;
+  id: string;
   name: string;
   address: string;
   city: string;
@@ -34,10 +39,13 @@ const ClinicDashboard = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [clinic, setClinic] = useState<Clinic | null>(null);
   const [isAddingPatient, setIsAddingPatient] = useState(false);
-  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
   const [newPatient, setNewPatient] = useState({
     name: "",
-    phone: ""
+    phone: "",
+    mother_name: "",
+    birth_date: "",
+    gestational_age: ""
   });
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -51,19 +59,66 @@ const ClinicDashboard = () => {
 
     const parsedClinic = JSON.parse(clinicData);
     setClinic(parsedClinic);
-
-    const storedPatients = localStorage.getItem(`cinebaby_patients_${parsedClinic.id}`);
-    if (storedPatients) {
-      const patientsData = JSON.parse(storedPatients);
-      setPatients(patientsData);
-      setFilteredPatients(patientsData);
-    }
+    loadPatientsFromSupabase(parsedClinic.id);
   }, [navigate]);
+
+  const loadPatientsFromSupabase = async (clinicId: string) => {
+    try {
+      console.log('🔍 Carregando pacientes da clínica:', clinicId);
+      
+      const { data: patientsData, error: patientsError } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('clinic_id', clinicId)
+        .order('created_at', { ascending: false });
+
+      if (patientsError) {
+        console.error('❌ Erro ao carregar pacientes:', patientsError);
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar pacientes. Tente novamente.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Pacientes carregadas:', patientsData?.length || 0);
+
+      // Contar vídeos para cada paciente
+      const patientsWithVideos = await Promise.all(
+        (patientsData || []).map(async (patient) => {
+          const { data: videos } = await supabase
+            .from('videos')
+            .select('id')
+            .eq('patient_id', patient.id);
+          
+          return {
+            ...patient,
+            videosCount: videos?.length || 0
+          };
+        })
+      );
+
+      setPatients(patientsWithVideos);
+      setFilteredPatients(patientsWithVideos);
+    } catch (error) {
+      console.error('❌ Erro geral ao carregar pacientes:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const filtered = patients.filter(patient =>
       patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.phone.includes(searchTerm)
+      patient.phone?.includes(searchTerm) ||
+      patient.mother_name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredPatients(filtered);
   }, [searchTerm, patients]);
@@ -73,11 +128,11 @@ const ClinicDashboard = () => {
     navigate("/");
   };
 
-  const handleAddPatient = () => {
-    if (!newPatient.name || !newPatient.phone) {
+  const handleAddPatient = async () => {
+    if (!newPatient.name || !newPatient.mother_name || !newPatient.birth_date || !newPatient.gestational_age) {
       toast({
         title: "Erro",
-        description: "Nome e telefone são obrigatórios.",
+        description: "Nome, nome da mãe, data de nascimento e idade gestacional são obrigatórios.",
         variant: "destructive",
       });
       return;
@@ -85,52 +140,116 @@ const ClinicDashboard = () => {
 
     if (!clinic) return;
 
-    const patient: Patient = {
-      id: Date.now(),
-      name: newPatient.name,
-      phone: newPatient.phone,
-      clinicId: clinic.id,
-      createdAt: new Date().toISOString(),
-      videosCount: 0
-    };
+    try {
+      const patientData = {
+        name: newPatient.name,
+        phone: newPatient.phone || null,
+        mother_name: newPatient.mother_name,
+        birth_date: newPatient.birth_date,
+        gestational_age: newPatient.gestational_age,
+        clinic_id: clinic.id,
+        qr_code: `PATIENT_${Date.now()}`
+      };
 
-    const updatedPatients = [...patients, patient];
-    setPatients(updatedPatients);
-    localStorage.setItem(`cinebaby_patients_${clinic.id}`, JSON.stringify(updatedPatients));
+      const { data, error } = await supabase
+        .from('patients')
+        .insert([patientData])
+        .select()
+        .single();
 
-    setNewPatient({ name: "", phone: "" });
-    setIsAddingPatient(false);
+      if (error) {
+        console.error('❌ Erro ao criar paciente:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao cadastrar paciente. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    toast({
-      title: "Paciente cadastrada!",
-      description: `${patient.name} foi cadastrada com sucesso.`,
-    });
-  };
+      console.log('✅ Paciente criada:', data.name);
 
-  const handleEditPatient = (updatedPatient: Patient) => {
-    const updatedPatients = patients.map(patient => 
-      patient.id === updatedPatient.id ? updatedPatient : patient
-    );
-    setPatients(updatedPatients);
-    localStorage.setItem(`cinebaby_patients_${clinic?.id}`, JSON.stringify(updatedPatients));
-    setEditingPatient(null);
-  };
+      // Recarregar lista de pacientes
+      await loadPatientsFromSupabase(clinic.id);
 
-  const handleDeletePatient = (patientId: number) => {
-    if (window.confirm("Tem certeza que deseja excluir esta paciente? Todos os vídeos serão perdidos.")) {
-      const updatedPatients = patients.filter(patient => patient.id !== patientId);
-      setPatients(updatedPatients);
-      localStorage.setItem(`cinebaby_patients_${clinic?.id}`, JSON.stringify(updatedPatients));
-      
-      // Remove também os vídeos da paciente
-      localStorage.removeItem(`cinebaby_videos_${patientId}`);
-      
+      setNewPatient({ name: "", phone: "", mother_name: "", birth_date: "", gestational_age: "" });
+      setIsAddingPatient(false);
+
       toast({
-        title: "Paciente excluída",
-        description: "A paciente foi removida com sucesso.",
+        title: "Paciente cadastrada!",
+        description: `${data.name} foi cadastrada com sucesso.`,
+      });
+
+    } catch (error) {
+      console.error('❌ Erro ao cadastrar paciente:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao cadastrar paciente. Tente novamente.",
+        variant: "destructive",
       });
     }
   };
+
+  const handleDeletePatient = async (patientId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir esta paciente? Todos os vídeos serão perdidos.")) {
+      try {
+        // Primeiro, deletar todos os vídeos da paciente
+        const { error: videosError } = await supabase
+          .from('videos')
+          .delete()
+          .eq('patient_id', patientId);
+
+        if (videosError) {
+          console.error('❌ Erro ao deletar vídeos:', videosError);
+        }
+
+        // Depois, deletar a paciente
+        const { error: patientError } = await supabase
+          .from('patients')
+          .delete()
+          .eq('id', patientId);
+
+        if (patientError) {
+          console.error('❌ Erro ao deletar paciente:', patientError);
+          toast({
+            title: "Erro",
+            description: "Erro ao excluir paciente. Tente novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Recarregar lista de pacientes
+        if (clinic) {
+          await loadPatientsFromSupabase(clinic.id);
+        }
+
+        toast({
+          title: "Paciente excluída",
+          description: "A paciente foi removida com sucesso.",
+        });
+
+      } catch (error) {
+        console.error('❌ Erro ao excluir paciente:', error);
+        toast({
+          title: "Erro",
+          description: "Erro ao excluir paciente. Tente novamente.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen cinebaby-gradient flex items-center justify-center">
+        <div className="text-center text-white">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Carregando dados da clínica...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!clinic) {
     return <div>Carregando...</div>;
@@ -185,11 +304,20 @@ const ClinicDashboard = () => {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Nome Completo</Label>
+                    <Label htmlFor="name">Nome da Paciente</Label>
                     <Input
                       id="name"
                       value={newPatient.name}
                       onChange={(e) => setNewPatient({ ...newPatient, name: e.target.value })}
+                      placeholder="Ex: Ana Silva"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="mother_name">Nome da Mãe</Label>
+                    <Input
+                      id="mother_name"
+                      value={newPatient.mother_name}
+                      onChange={(e) => setNewPatient({ ...newPatient, mother_name: e.target.value })}
                       placeholder="Ex: Maria Silva"
                     />
                   </div>
@@ -200,6 +328,24 @@ const ClinicDashboard = () => {
                       value={newPatient.phone}
                       onChange={(e) => setNewPatient({ ...newPatient, phone: e.target.value })}
                       placeholder="(11) 99999-9999"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="birth_date">Data de Nascimento</Label>
+                    <Input
+                      id="birth_date"
+                      type="date"
+                      value={newPatient.birth_date}
+                      onChange={(e) => setNewPatient({ ...newPatient, birth_date: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="gestational_age">Idade Gestacional</Label>
+                    <Input
+                      id="gestational_age"
+                      value={newPatient.gestational_age}
+                      onChange={(e) => setNewPatient({ ...newPatient, gestational_age: e.target.value })}
+                      placeholder="Ex: 20 semanas"
                     />
                   </div>
                   <Button onClick={handleAddPatient} className="w-full cinebaby-button-secondary">
@@ -220,7 +366,7 @@ const ClinicDashboard = () => {
           </CardHeader>
           <CardContent>
             <Input
-              placeholder="Busque por nome ou telefone..."
+              placeholder="Busque por nome, telefone ou nome da mãe..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-md text-lg py-3"
@@ -253,7 +399,9 @@ const ClinicDashboard = () => {
                   <TableHeader>
                     <TableRow className="bg-gradient-to-r from-teal-50 to-purple-50">
                       <TableHead className="font-semibold">Nome</TableHead>
+                      <TableHead className="font-semibold">Mãe</TableHead>
                       <TableHead className="font-semibold">Telefone</TableHead>
+                      <TableHead className="font-semibold">Idade Gestacional</TableHead>
                       <TableHead className="font-semibold">Vídeos</TableHead>
                       <TableHead className="font-semibold">Data Cadastro</TableHead>
                       <TableHead className="font-semibold text-center">Ações</TableHead>
@@ -263,27 +411,21 @@ const ClinicDashboard = () => {
                     {filteredPatients.map((patient) => (
                       <TableRow key={patient.id} className="hover:bg-teal-50/50 transition-colors">
                         <TableCell className="font-medium">{patient.name}</TableCell>
-                        <TableCell>{patient.phone}</TableCell>
+                        <TableCell>{patient.mother_name}</TableCell>
+                        <TableCell>{patient.phone || 'Não informado'}</TableCell>
+                        <TableCell>{patient.gestational_age}</TableCell>
                         <TableCell>
                           <Badge className="bg-gradient-to-r from-purple-100 to-purple-200 text-purple-800 border-purple-300">
-                            {patient.videosCount} vídeo{patient.videosCount !== 1 ? 's' : ''}
+                            {patient.videosCount || 0} vídeo{(patient.videosCount || 0) !== 1 ? 's' : ''}
                           </Badge>
                         </TableCell>
-                        <TableCell>{new Date(patient.createdAt).toLocaleDateString('pt-BR')}</TableCell>
+                        <TableCell>{new Date(patient.created_at).toLocaleDateString('pt-BR')}</TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center space-x-2">
                             <Button asChild variant="outline" size="sm" className="hover:bg-teal-50 hover:border-teal-300">
                               <Link to={`/clinic/patient/${patient.id}`}>
                                 <Eye className="h-4 w-4" />
                               </Link>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingPatient(patient)}
-                              className="hover:bg-purple-50 hover:border-purple-300"
-                            >
-                              <Edit className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="outline"
@@ -304,15 +446,6 @@ const ClinicDashboard = () => {
           </CardContent>
         </Card>
       </main>
-
-      {editingPatient && (
-        <EditPatientDialog
-          patient={editingPatient}
-          isOpen={!!editingPatient}
-          onClose={() => setEditingPatient(null)}
-          onSave={handleEditPatient}
-        />
-      )}
     </div>
   );
 };
