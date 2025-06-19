@@ -321,6 +321,13 @@ const PatientProfile = () => {
               width: 60px;
               height: auto;
             }
+            .patient-info {
+              margin: 25px 0 35px 0;
+              padding: 25px;
+              background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+              border-radius: 16px;
+              border: 2px solid #e5e7eb;
+            }
             .patient-name {
               font-size: 28px;
               font-weight: 700;
@@ -328,7 +335,16 @@ const PatientProfile = () => {
               -webkit-background-clip: text;
               -webkit-text-fill-color: transparent;
               background-clip: text;
-              margin: 25px 0 10px 0;
+              margin-bottom: 15px;
+            }
+            .patient-details {
+              color: #6b7280;
+              font-size: 16px;
+              line-height: 1.6;
+            }
+            .patient-details strong {
+              color: #374151;
+              font-weight: 600;
             }
             .clinic-name {
               font-size: 18px;
@@ -410,8 +426,14 @@ const PatientProfile = () => {
             <div class="logo-container">
               <img src="/lovable-uploads/0f255407-3789-418f-8a06-69187f941576.png" alt="CineBaby Logo" class="logo" />
             </div>
-            <div class="patient-name">${patient.name}</div>
-            <div class="clinic-name">${clinic.name}</div>
+            
+            <div class="patient-info">
+              <div class="patient-name">${patient.name}</div>
+              <div class="patient-details">
+                <strong>Data de Cadastro:</strong> ${new Date(patient.created_at).toLocaleDateString('pt-BR')}<br/>
+                <strong>Clínica:</strong> ${clinic.name}
+              </div>
+            </div>
             
             <div class="qr-section">
               <div class="qr-code">
