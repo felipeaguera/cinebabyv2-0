@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,13 +15,23 @@ const AdminLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { signIn } = useAuth();
+  const { signIn, user, isAdmin, loading } = useAuth();
+
+  // Redirecionar se já estiver logado como admin
+  useEffect(() => {
+    if (!loading && user && isAdmin) {
+      console.log('Admin já logado, redirecionando...');
+      navigate("/admin/dashboard");
+    }
+  }, [user, isAdmin, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      console.log('Tentando fazer login como admin:', email);
+
       const { error } = await signIn(email, password);
 
       if (error) {
@@ -35,7 +45,7 @@ const AdminLogin = () => {
         return;
       }
 
-      // O redirecionamento será feito pelo useEffect no AdminDashboard
+      // O redirecionamento será feito pelo useEffect quando o estado for atualizado
       toast({
         title: "Login realizado com sucesso!",
         description: "Bem-vindo ao painel administrativo.",
@@ -48,10 +58,17 @@ const AdminLogin = () => {
         description: "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen cinebaby-gradient flex items-center justify-center">
+        <div className="text-white text-xl">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen cinebaby-gradient flex items-center justify-center p-4 relative overflow-hidden">

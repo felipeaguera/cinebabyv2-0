@@ -35,17 +35,26 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
       return;
     }
 
+    if (newClinic.password.length < 6) {
+      toast({
+        title: "Erro",
+        description: "A senha deve ter pelo menos 6 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       console.log('Tentando criar clínica:', newClinic.name, newClinic.email);
 
-      // Verificar se o email já existe
+      // Primeiro, verificar se já existe uma clínica com este email
       const { data: existingClinic } = await supabase
         .from('clinics')
         .select('email')
         .eq('email', newClinic.email)
-        .single();
+        .maybeSingle();
 
       if (existingClinic) {
         toast({
@@ -58,19 +67,28 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
       }
 
       // Criar usuário no Supabase Auth
+      console.log('Criando usuário no Supabase Auth...');
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: newClinic.email,
         password: newClinic.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/clinic/login`
+          emailRedirectTo: `${window.location.origin}/clinic/login`,
+          data: {
+            clinic_name: newClinic.name
+          }
         }
       });
 
       if (authError) {
         console.error('Erro ao criar usuário no Supabase Auth:', authError);
         
-        // Tratar erro de rate limit especificamente
-        if (authError.message.includes('For security purposes')) {
+        if (authError.message.includes('User already registered')) {
+          toast({
+            title: "Erro",
+            description: "Este email já está registrado no sistema.",
+            variant: "destructive",
+          });
+        } else if (authError.message.includes('For security purposes')) {
           toast({
             title: "Limite de tentativas",
             description: "Aguarde alguns segundos antes de tentar novamente.",
@@ -87,9 +105,20 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
         return;
       }
 
-      console.log('Usuário criado no Supabase Auth:', authData.user?.id);
+      if (!authData.user) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível criar o usuário.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('Usuário criado no Supabase Auth:', authData.user.id);
 
       // Criar a clínica na tabela clinics
+      console.log('Criando clínica na tabela...');
       const { data: clinicData, error: clinicError } = await supabase
         .from('clinics')
         .insert({
@@ -98,13 +127,23 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
           city: newClinic.city,
           email: newClinic.email,
           phone: newClinic.phone || null,
-          user_id: authData.user?.id
+          user_id: authData.user.id
         })
         .select()
         .single();
 
       if (clinicError) {
         console.error('Erro ao criar clínica:', clinicError);
+        
+        // Se falhou ao criar a clínica, tentar remover o usuário criado
+        try {
+          console.log('Removendo usuário órfão...');
+          // Nota: Não podemos deletar usuários via API client, apenas via admin API
+          // O usuário ficará órfão mas não poderá fazer login como clínica
+        } catch (cleanupError) {
+          console.error('Erro ao limpar usuário órfão:', cleanupError);
+        }
+        
         toast({
           title: "Erro",
           description: "Erro ao criar clínica: " + clinicError.message,
@@ -122,7 +161,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
 
       toast({
         title: "Clínica cadastrada!",
-        description: `${clinicData.name} foi cadastrada com sucesso.`,
+        description: `${clinicData.name} foi cadastrada com sucesso. A clínica pode fazer login com o email e senha fornecidos.`,
       });
     } catch (err) {
       console.error('Erro inesperado ao cadastrar clínica:', err);
@@ -148,12 +187,12 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
         <DialogHeader>
           <DialogTitle>Cadastrar Nova Clínica</DialogTitle>
           <DialogDescription>
-            Preencha os dados da nova clínica
+            Preencha os dados da nova clínica. Será criado um login de acesso para a clínica.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome da Clínica</Label>
+            <Label htmlFor="name">Nome da Clínica *</Label>
             <Input
               id="name"
               value={newClinic.name}
@@ -163,7 +202,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="address">Endereço</Label>
+            <Label htmlFor="address">Endereço *</Label>
             <Input
               id="address"
               value={newClinic.address}
@@ -173,7 +212,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="city">Cidade</Label>
+            <Label htmlFor="city">Cidade *</Label>
             <Input
               id="city"
               value={newClinic.city}
@@ -193,7 +232,7 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email da Clínica</Label>
+            <Label htmlFor="email">Email de Login *</Label>
             <Input
               id="email"
               type="email"
@@ -204,13 +243,13 @@ const AddClinicDialog = ({ onClinicAdded }: AddClinicDialogProps) => {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Senha</Label>
+            <Label htmlFor="password">Senha de Acesso *</Label>
             <Input
               id="password"
               type="password"
               value={newClinic.password}
               onChange={(e) => setNewClinic({ ...newClinic, password: e.target.value })}
-              placeholder="Senha de acesso (mínimo 6 caracteres)"
+              placeholder="Mínimo 6 caracteres"
               disabled={isLoading}
             />
           </div>

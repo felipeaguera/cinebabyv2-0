@@ -10,6 +10,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  clinicData: any;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,6 +20,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [clinicData, setClinicData] = useState(null);
 
   useEffect(() => {
     // Configurar listener para mudanças de autenticação
@@ -29,13 +31,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Verificar se é admin baseado no email
-          const adminEmail = 'admin@cinebaby.online';
-          const isUserAdmin = session.user.email === adminEmail;
-          setIsAdmin(isUserAdmin);
-          console.log('Is admin:', isUserAdmin, 'User email:', session.user.email);
+          await checkUserRole(session.user);
         } else {
           setIsAdmin(false);
+          setClinicData(null);
+          // Limpar localStorage quando fazer logout
+          localStorage.removeItem("cinebaby_clinic");
         }
         
         setLoading(false);
@@ -43,18 +44,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     );
 
     // Verificar sessão existente
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       console.log('Getting existing session:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        const adminEmail = 'admin@cinebaby.online';
-        const isUserAdmin = session.user.email === adminEmail;
-        setIsAdmin(isUserAdmin);
-        console.log('Existing session - Is admin:', isUserAdmin, 'User email:', session.user.email);
+        await checkUserRole(session.user);
       } else {
         setIsAdmin(false);
+        setClinicData(null);
       }
       
       setLoading(false);
@@ -62,6 +61,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const checkUserRole = async (user: User) => {
+    const adminEmail = 'admin@cinebaby.online';
+    
+    if (user.email === adminEmail) {
+      console.log('User is admin:', user.email);
+      setIsAdmin(true);
+      setClinicData(null);
+      localStorage.removeItem("cinebaby_clinic");
+    } else {
+      // Verificar se é uma clínica válida
+      console.log('Checking if user is a clinic:', user.email);
+      
+      const { data: clinic, error } = await supabase
+        .from('clinics')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (clinic && !error) {
+        console.log('User is clinic:', clinic.name, clinic.id);
+        setIsAdmin(false);
+        setClinicData(clinic);
+        localStorage.setItem("cinebaby_clinic", JSON.stringify(clinic));
+      } else {
+        console.log('User is not a valid clinic, signing out');
+        // Se não é admin nem clínica válida, fazer logout
+        await supabase.auth.signOut();
+        setIsAdmin(false);
+        setClinicData(null);
+        localStorage.removeItem("cinebaby_clinic");
+      }
+    }
+  };
 
   const signIn = async (email: string, password: string) => {
     console.log('Attempting to sign in with:', email);
@@ -89,7 +122,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       loading,
       signIn,
       signOut,
-      isAdmin
+      isAdmin,
+      clinicData
     }}>
       {children}
     </AuthContext.Provider>

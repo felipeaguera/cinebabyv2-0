@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const ClinicLogin = () => {
   const [email, setEmail] = useState("");
@@ -15,6 +15,15 @@ const ClinicLogin = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signIn, user, isAdmin, clinicData, loading } = useAuth();
+
+  // Redirecionar se já estiver logado como clínica
+  useEffect(() => {
+    if (!loading && user && !isAdmin && clinicData) {
+      console.log('Clínica já logada, redirecionando...');
+      navigate("/clinic/dashboard");
+    }
+  }, [user, isAdmin, clinicData, loading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,14 +32,10 @@ const ClinicLogin = () => {
     try {
       console.log('🔍 Tentando fazer login da clínica com:', email);
 
-      // Primeiro, fazer login com Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error } = await signIn(email, password);
 
-      if (authError || !authData.user) {
-        console.error('❌ Erro no login do Supabase:', authError);
+      if (error) {
+        console.error('❌ Erro no login:', error);
         toast({
           title: "Erro no login",
           description: "Email ou senha incorretos.",
@@ -40,37 +45,12 @@ const ClinicLogin = () => {
         return;
       }
 
-      console.log('✅ Login do Supabase realizado:', authData.user.email);
-
-      // Buscar clínica associada ao email
-      const { data: clinic, error: clinicError } = await supabase
-        .from('clinics')
-        .select('*')
-        .eq('email', email)
-        .single();
-
-      if (clinicError || !clinic) {
-        console.error('❌ Nenhuma clínica encontrada para este email:', clinicError);
-        toast({
-          title: "Erro no login",
-          description: "Nenhuma clínica encontrada para este email. Entre em contato com o suporte.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('✅ Clínica encontrada:', clinic);
-
-      // Salvar informações da clínica
-      localStorage.setItem("cinebaby_clinic", JSON.stringify(clinic));
-      
+      // O redirecionamento será feito pelo useEffect quando o estado for atualizado
       toast({
         title: "Login realizado com sucesso!",
-        description: `Bem-vinda, ${clinic.name}!`,
+        description: "Bem-vinda ao painel da clínica!",
       });
       
-      navigate("/clinic/dashboard");
     } catch (err) {
       console.error('❌ Erro geral no login:', err);
       toast({
@@ -78,10 +58,17 @@ const ClinicLogin = () => {
         description: "Ocorreu um erro. Tente novamente.",
         variant: "destructive",
       });
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen cinebaby-gradient flex items-center justify-center">
+        <div className="text-white text-xl">Carregando...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen cinebaby-gradient flex items-center justify-center p-4 relative overflow-hidden">
